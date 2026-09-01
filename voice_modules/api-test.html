@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Voice Assistant API Test</title>
+  <style>
+    body { max-width: 720px; margin: 32px auto; padding: 0 16px; font: 16px/1.45 sans-serif; }
+    button, input { font: inherit; padding: 8px 12px; margin: 4px 0; }
+    input { width: min(100%, 520px); }
+    #log { height: 260px; overflow: auto; padding: 12px; background: #111; color: #ddd; white-space: pre-wrap; font: 13px/1.4 monospace; }
+    .status { font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Voice Assistant API Test</h1>
+  <p class="status" id="status">Disconnected</p>
+  <button id="connectButton">Connect</button>
+  <button id="micButton" disabled>Start microphone</button>
+  <br>
+  <input id="message" placeholder="Send a text message" autocomplete="off">
+  <button id="sendButton" disabled>Send</button>
+  <h2>Events</h2>
+  <div id="log"></div>
+
+  <script>
+    const status = document.getElementById("status");
+    const log = document.getElementById("log");
+    const connectButton = document.getElementById("connectButton");
+    const micButton = document.getElementById("micButton");
+    const sendButton = document.getElementById("sendButton");
+    const message = document.getElementById("message");
+
+    let socket;
+    let microphoneStream;
+    let inputContext;
+    let processor;
+    let outputContext;
+    let nextPlaybackTime = 0;
+
+    function writeLog(text) {
+      log.textContent += `${text}\n`;
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function setConnected(connected) {
+      status.textContent = connected ? "Connected" : "Disconnected";
+      micButton.disabled = !connected;
+      sendButton.disabled = !connected;
+      connectButton.textContent = connected ? "Disconnect" : "Connect";
+    }
+
+    function websocketUrl() {
+      const scheme = location.protocol === "https:" ? "wss" : "ws";
+      return `${scheme}://${location.hostname || "127.0.0.1"}:8000/ws`;
+    }
+
+    function connect() {
+      socket = new WebSocket(websocketUrl());
+      socket.binaryType = "arraybuffer";
+      status.textContent = "Connecting...";
+
+      socket.onopen = () => {
+        setConnected(true);
+        writeLog("WebSocket connected");
+      };
+      socket.onclose = () => {
+        stopMicrophone();
+        setConnected(false);
+        writeLog("WebSocket closed");
+      };
+      socket.onerror = () => writeLog("WebSocket error - confirm voice_assistant.py is running on port 8000");
+      socket.onmessage = async (event) => {
+        if (typeof event.data === "string") {
+          writeLog(`Server: ${event.data}`);
+        } else {
+          await playPcmAudio(event.data);
+        }
+      };
+    }
+
+    async function startMicrophone() {
+      try {
+        microphoneStream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1 } });
+        inputContext = new AudioContext({ sampleRate: 16000 });
+        const source = inputContext.createMediaStreamSource(microphoneStream);
+        processor = inputContext.createScriptProcessor(2048, 1, 1);
+        processor.onaudioprocess = (event) => {
+          if (!socket || socket.readyState !== WebSocket.OPEN) return;
+          const samples = event.inputBuffer.getChannelData(0);
+          const pcm = new Int16Array(samples.length);
+          for (let index = 0; index < samples.length; index++) {
+            pcm[index] = Math.max(-1, Math.min(1, samples[index])) * 32767;
+          }
+          socket.send(pcm.buffer);
+        };
+        source.connect(processor);
+        processor.connect(inputContext.destination);
+        micButton.textContent = "Stop microphone";
+        writeLog(`Microphone started at ${inputContext.sampleRate} Hz`);
+      } catch (error) {
+        writeLog(`Microphone error: ${error.message}`);
+      }
+    }
+
+    function stopMicrophone() {
+      if (processor) processor.disconnect();
+      if (inputContext) inputContext.close();
+      if (microphoneStream) microphoneStream.getTracks().forEach((track) => track.stop());
+      processor = null;
+      inputContext = null;
+      microphoneStream = null;
+      micButton.textContent = "Start microphone";
+    }
+
+    async function playPcmAudio(data) {
+      outputContext ??= new AudioContext({ sampleRate: 24000 });
+      await outputContext.resume();
+      const rawSamples = new Int16Array(data);
+      const buffer = outputContext.createBuffer(1, rawSamples.length, 24000);
+      const samples = buffer.getChannelData(0);
+      for (let index = 0; index < rawSamples.length; index++) samples[index] = rawSamples[index] / 32768;
+      const source = outputContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(outputContext.destination);
+      nextPlaybackTime = Math.max(nextPlaybackTime, outputContext.currentTime);
+      source.start(nextPlaybackTime);
+      nextPlaybackTime += buffer.duration;
+    }
+
+    connectButton.onclick = () => {
+      if (socket?.readyState === WebSocket.OPEN) socket.close();
+      else connect();
+    };
+    micButton.onclick = () => microphoneStream ? stopMicrophone() : startMicrophone();
+    sendButton.onclick = () => {
+      const text = message.value.trim();
+      if (!text) return;
+      socket.send(text);
+      writeLog(`You: ${text}`);
+      message.value = "";
+    };
+    message.onkeydown = (event) => {
+      if (event.key === "Enter") sendButton.click();
+    };
+  </script>
+</body>
+</html>
