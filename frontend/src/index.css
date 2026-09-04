@@ -1,0 +1,72 @@
+/* =================================================================
+   Global stylesheet
+   -----------------------------------------------------------------
+   1. Tailwind layers (base / components / utilities)
+   2. Small global tweaks that don't belong to any single component
+   3. Reusable component classes built from utilities (@layer)
+   ================================================================= */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* -----------------------------------------------------------------
+   Base tweaks
+   ----------------------------------------------------------------- */
+@layer base {
+  html {
+    /* Smooth in-page anchor scrolling */
+    scroll-behavior: smooth;
+  }
+
+  body {
+    /* Default text colour + font smoothing for a crisp, pro feel */
+    @apply text-slate-900 antialiased;
+  }
+
+  /* Respect users who prefer reduced motion (accessibility) */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* -----------------------------------------------------------------
+   Reusable component classes
+   ----------------------------------------------------------------- */
+@layer components {
+  /* Black pill used as a section/card header (from reference theme) */
+  .pill-header {
+    @apply inline-block rounded-lg bg-black px-4 py-1 text-sm font-semibold tracking-wide text-white;
+  }
+
+  /* White frosted card used across all dashboards */
+  .surface-card {
+    @apply rounded-2xl bg-white/95 p-5 shadow-card backdrop-blur transition-shadow duration-300;
+  }
+
+  /* Lift effect on hover — subtle, medical-app appropriate */
+  .surface-card-hover {
+    @apply hover:-translate-y-1 hover:shadow-card-hover;
+  }
+
+  /* Slim, unobtrusive scrollbar for scrollable panels */
+  .scroll-slim {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.25) transparent;
+  }
+  .scroll-slim::-webkit-scrollbar {
+    width: 6px;
+  }
+  .scroll-slim::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-black/25;
+  }
+  .scroll-slim::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
