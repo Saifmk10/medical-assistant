@@ -1,3 +1,6 @@
+# this module has been taken form a gh repo and if any issue in this one then the code needs to be checked 
+# repo the code is taken from is https://github.com/google-gemini/gemini-live-api-examples.git   
+
 import asyncio
 import inspect
 import logging
