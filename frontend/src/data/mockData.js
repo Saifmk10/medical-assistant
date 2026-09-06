@@ -9,6 +9,28 @@
 // -------------------------------------------------------------
 // 1. Hardcoded login credentials (frontend-only auth)
 // -------------------------------------------------------------
+
+
+// api calling to fetch doc details 
+
+async function apiCalls() {
+  const requestedData = await fetch("http://127.0.0.1:8000/doctor-details")
+  const data = await requestedData.json()
+  // console.log(data)
+  return data
+}
+
+const doctorDetails = await apiCalls()
+console.log("API DATA :" , doctorDetails)
+
+// maps API doctor rows onto the STAFF_ON_DUTY shape used by the dashboard UI
+const API_STAFF_ON_DUTY = doctorDetails.map((doctor) => ({
+  name: doctor.name,
+  role: doctor.qualification,
+  shift: '—',
+  status: 'On Duty',
+}));
+
 export const CREDENTIALS = {
   admin: {
     id: 'admin',
@@ -77,14 +99,7 @@ export const DEPARTMENT_OCCUPANCY = [
 ];
 
 // Staff currently on shift
-export const STAFF_ON_DUTY = [
-  { name: 'Dr. Amelia Stone', role: 'Cardiologist', shift: '08:00 – 16:00', status: 'On Duty' },
-  { name: 'Dr. Rajiv Menon', role: 'Neurologist', shift: '09:00 – 17:00', status: 'On Duty' },
-  { name: 'Nurse Carla Diaz', role: 'ICU Nurse', shift: '07:00 – 19:00', status: 'On Duty' },
-  { name: 'Dr. Kevin Osei', role: 'Orthopedic Surgeon', shift: '10:00 – 18:00', status: 'In Surgery' },
-  { name: 'Nurse Priya Nair', role: 'ER Nurse', shift: '19:00 – 07:00', status: 'On Duty' },
-  { name: 'Dr. Lena Fischer', role: 'Pediatrician', shift: '08:00 – 16:00', status: 'On Break' },
-];
+export const STAFF_ON_DUTY = API_STAFF_ON_DUTY;
 
 // Latest admissions / events for the activity feed
 export const RECENT_ACTIVITY = [
