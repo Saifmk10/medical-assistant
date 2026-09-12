@@ -30,28 +30,32 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(readStoredSession);
 
   // ---------------------------------------------------------
-  // login(role, password)
-  // Validates against the hardcoded CREDENTIALS table.
+  // login(userId, password)
+  // Looks up the role by matching userId against the hardcoded
+  // CREDENTIALS table, then validates the password.
   // Returns { ok: true } on success, { ok: false, error } otherwise.
   // ---------------------------------------------------------
-  const login = useCallback((role, password) => {
+  const login = useCallback((userId, password) => {
+    const role = Object.keys(CREDENTIALS).find(
+      (key) => CREDENTIALS[key].id === userId
+    );
     const creds = CREDENTIALS[role];
 
-    // Unknown role (tampered URL param, etc.)
+    // No matching user ID
     if (!creds) {
-      return { ok: false, error: 'Unknown role.' };
+      return { ok: false, error: 'Invalid user ID or password.' };
     }
 
     // Wrong password
     if (creds.password !== password) {
-      return { ok: false, error: 'Incorrect password. Please try again.' };
+      return { ok: false, error: 'Invalid user ID or password.' };
     }
 
     // Success — build the session object and persist it
     const next = { role, name: creds.name, title: creds.title };
     setSession(next);
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    return { ok: true };
+    return { ok: true, role };
   }, []);
 
   // ---------------------------------------------------------

@@ -2,8 +2,7 @@
 // App — root component & route table
 // -------------------------------------------------------------
 // Route map:
-//   /                        → RoleSelection (pick Admin / Doctor / Maintenance)
-//   /login/:role             → Login screen for the chosen role
+//   /                        → Login (single unified login form)
 //   /admin/dashboard         → Admin dashboard       (protected)
 //   /doctor/dashboard        → Doctor dashboard      (protected)
 //   /maintenance/dashboard   → Maintenance dashboard (protected)
@@ -15,7 +14,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 
 import ProtectedRoute from './components/ProtectedRoute.jsx';
-import RoleSelection from './pages/RoleSelection.jsx';
 import Login from './pages/Login.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import DoctorDashboard from './pages/DoctorDashboard.jsx';
@@ -24,9 +22,8 @@ import MaintenanceDashboard from './pages/MaintenanceDashboard.jsx';
 export default function App() {
   return (
     <Routes>
-      {/* Public routes */}
-      <Route path="/" element={<RoleSelection />} />
-      <Route path="/login/:role" element={<Login />} />
+      {/* Public route — single login form for every role */}
+      <Route path="/" element={<Login />} />
 
       {/* Protected dashboards — one per role */}
       <Route
