@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Medical Assistant",
+    "slug": "medical-assistant",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "medical-assistant",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#F5F7FB",
+    "splash": {
+      "backgroundColor": "#2868C9"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.medicalassistant.app"
+    },
+    "android": {
+      "package": "com.medicalassistant.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#2868C9",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
