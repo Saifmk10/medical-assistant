@@ -14,7 +14,7 @@ def get_doctor_details():
         print(f"Error connecting to database : {e}")
         return None
     
-    cursor.execute('SELECT name  , qualification  FROM hospitals.cmh')
+    cursor.execute('SELECT doc_name, designation, working_hours FROM hospitals.test_data')
     doctor_details = cursor.fetchall()
     cursor.close()
     connection.close()
