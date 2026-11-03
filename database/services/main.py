@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from doctor_details_api import get_doctor_details
-from appointment_booking_api import appointment_booking
+from appointment_operations_api import appointment_booking , appointment_cancellation
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -24,3 +24,7 @@ def doc():
 @app.post("/appointment-booking")
 def book_appointment(patient_name: str, doc_name: str, designation: str, slot_booking_time: str, hospital: str, contact: str):
     return appointment_booking(patient_name, doc_name, designation, slot_booking_time, hospital , contact)
+
+@app.post("/appointment-cancellation")
+def cancel_appointment(patient_name: str, doc_name: str, designation: str, slot_booking_time: str, hospital: str, contact: str):
+    return appointment_cancellation(patient_name, doc_name, designation, slot_booking_time, hospital , contact)
