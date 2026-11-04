@@ -1,6 +1,9 @@
+import os
+
 import requests
 
-api_url = "http://127.0.0.1:8001/doctor-details"
+api_base_url = os.getenv("MEDICAL_BACKEND_URL", "http://127.0.0.1:8001").rstrip("/")
+api_url = f"{api_base_url}/doctor-details"
 
 def check_doctor_availablity():
 
@@ -30,7 +33,7 @@ def book_appointment(patient_name: str, doc_name: str, designation: str, slot_bo
         "contact": contact
     }
     
-    response = requests.post(f"http://127.0.0.1:8001/appointment-booking?patient_name={patient_name}&doc_name={doc_name}&designation={designation}&slot_booking_time={slot_booking_time}&hospital={hospital}&contact={contact}")
+    response = requests.post(f"{api_base_url}/appointment-booking?patient_name={patient_name}&doc_name={doc_name}&designation={designation}&slot_booking_time={slot_booking_time}&hospital={hospital}&contact={contact}")
 
     if response.status_code == 200:
         return {"message": "Appointment booked successfully"}
@@ -45,7 +48,7 @@ def cancel_appointment(patient_name: str, doc_name: str, designation: str, slot_
     """Function to cancel an appointment by making a POST request to the API endpoint. Any one of the details can be provided to cancel the appointment."""
     
    
-    response = requests.post(f"http://127.0.0.1:8001/appointment-cancellation?patient_name={patient_name}&doc_name={doc_name}&designation={designation}&slot_booking_time={slot_booking_time}&hospital={hospital}&contact={contact}")
+    response = requests.post(f"{api_base_url}/appointment-cancellation?patient_name={patient_name}&doc_name={doc_name}&designation={designation}&slot_booking_time={slot_booking_time}&hospital={hospital}&contact={contact}")
    
     if response.status_code == 200:
         return {"message": "Appointment cancelled successfully"}

@@ -1,0 +1,11 @@
+.git
+.env
+**/.env
+**/.adk/
+**/__pycache__/
+**/*.py[cod]
+**/node_modules/
+**/venv/
+venv/
+frontend/
+mobile/

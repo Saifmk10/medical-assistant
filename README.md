@@ -37,3 +37,14 @@ The goal is to simplify healthcare access by reducing friction in appointment sc
 ## Status
 
 This project is a proof of concept focused on the patient-facing healthcare booking experience.
+
+## Run the medical agent with Docker
+
+Set the agent's Google API credentials in `agents/agent-pipeline/medical_agent/.env`. Set `DATABASE_URL` in the repository-root `.env` file to the PostgreSQL connection URL, using `host.docker.internal` as the host when PostgreSQL is started separately with `database/docker-compose.yaml`. Then start the services from the repository root:
+
+```sh
+docker compose -f database/docker-compose.yaml up -d
+docker compose up --build
+```
+
+The medical agent API is available at `http://127.0.0.1:8080`, and the database API at `http://127.0.0.1:8001`. Both are bound to the local machine only. The agent connects to `database-api:8001` over the Compose network by default.
