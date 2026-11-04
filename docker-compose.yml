@@ -1,0 +1,32 @@
+services:
+  medical-agent:
+    build:
+      context: .
+      dockerfile: agents/agent-pipeline/medical_agent/Dockerfile
+    ports:
+      - "127.0.0.1:8080:8002"
+    env_file:
+      - ./agents/agent-pipeline/medical_agent/.env
+    environment:
+      MEDICAL_BACKEND_URL: ${MEDICAL_BACKEND_URL:-http://database-api:8001}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - medical_agent_data:/app/agents/agent-pipeline/medical_agent/.adk
+    restart: unless-stopped
+
+  database-api:
+    build:
+      context: .
+      dockerfile: database/services/Dockerfile
+    container_name: database-api
+    ports:
+      - "127.0.0.1:8001:8001"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in the repository root .env file}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+volumes:
+  medical_agent_data:

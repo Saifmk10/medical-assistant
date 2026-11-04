@@ -11,3 +11,32 @@ root_agent = Agent(
     tools=[check_doctor_availablity , book_appointment , cancel_appointment],
     after_model_callback=track_cost
 )
+
+
+# used to create a new session 
+#  curl.exe -X POST "http://127.0.0.1:8000/apps/medical_agent/users/u_123/sessions/s_123" `
+# >>   -H "Content-Type: application/json" `
+# >>   -d '{\"key1\":\"value1\",\"key2\":42}'
+
+
+# used to send request to the medical agent
+
+# $body = @{
+#     app_name = "medical_agent"
+#     user_id = "u_123"
+#     session_id = "s_123"
+#     new_message = @{
+#         role = "user"
+#         parts = @(
+#             @{ text = "i need to book an appointment" }
+#         )
+#     }
+# } | ConvertTo-Json -Depth 10 -Compress
+
+# $response = Invoke-RestMethod `
+#     -Uri "http://127.0.0.1:8000/run" `
+#     -Method Post `
+#     -ContentType "application/json" `
+#     -Body $body
+
+# $response | ConvertTo-Json -Depth 20
