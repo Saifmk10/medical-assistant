@@ -7,7 +7,7 @@ def get_doctor_details():
 
     try:
         connection = psycopg.connect(
-            os.getenv("DATABASE_URL", "postgresql://postgres:mysecretpassword@localhost:5432/my_app"),
+            os.getenv("DATABASE_URL", "postgresql://postgres:mysecretpassword@postgres-db:5432/my_app"),
             row_factory=dict_row
         )
         cursor = connection.cursor()

@@ -221,3 +221,4 @@ __marimo__/
 # docker container details for deployment 
 docker-details
 mcp-details
+my_app.dump

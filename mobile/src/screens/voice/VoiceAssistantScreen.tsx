@@ -29,7 +29,7 @@ export function VoiceAssistantScreen() {
     <ScreenContainer edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <Text style={styles.title}>Voice Assistant</Text>
-        <Text style={styles.subtitle}>Say what you need — I'll take care of the rest</Text>
+        <Text style={styles.subtitle}>Say what you need — I&apos;ll take care of the rest</Text>
       </View>
 
       <FlatList

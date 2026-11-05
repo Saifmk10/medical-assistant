@@ -1,4 +1,24 @@
 services:
+  postgres:
+    image: postgres:18
+    container_name: postgres-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mysecretpassword}
+      POSTGRES_DB: ${POSTGRES_DB:-my_app}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    networks:
+      - medical-assistant
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
   medical-agent:
     build:
       context: .
@@ -13,6 +33,8 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - medical_agent_data:/app/agents/agent-pipeline/medical_agent/.adk
+    networks:
+      - medical-assistant
     restart: unless-stopped
 
   database-api:
@@ -23,10 +45,19 @@ services:
     ports:
       - "127.0.0.1:8001:8001"
     environment:
-      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in the repository root .env file}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-mysecretpassword}@postgres:5432/${POSTGRES_DB:-my_app}}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - medical-assistant
     restart: unless-stopped
+
+networks:
+  medical-assistant:
+    name: medical-assistant
+    driver: bridge
 
 volumes:
   medical_agent_data:
+  postgres_data:

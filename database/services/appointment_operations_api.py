@@ -7,7 +7,7 @@ def appointment_booking(patient_name, doc_name, designation, slot_booking_time, 
 
     try:
         connection = psycopg.connect(
-            os.getenv("DATABASE_URL", "postgresql://postgres:mysecretpassword@localhost:5432/my_app"),
+            os.getenv("DATABASE_URL", "postgresql://postgres:mysecretpassword@postgres-db:5432/my_app"),
             row_factory=dict_row
         )
         cursor = connection.cursor()
@@ -29,7 +29,7 @@ def appointment_cancellation(patient_name, doc_name, designation, slot_booking_t
 
     try:
         connection = psycopg.connect(
-            os.getenv("DATABASE_URL", "postgresql://postgres:mysecretpassword@localhost:5432/my_app"),
+            os.getenv("DATABASE_URL", "postgresql://postgres:mysecretpassword@postgres-db:5432/my_app"),
             row_factory=dict_row
         )
         cursor = connection.cursor()
