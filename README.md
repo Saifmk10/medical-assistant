@@ -40,11 +40,12 @@ This project is a proof of concept focused on the patient-facing healthcare book
 
 ## Run the medical agent with Docker
 
-Set the agent's Google API credentials in `agents/agent-pipeline/medical_agent/.env`. Set `DATABASE_URL` in the repository-root `.env` file to the PostgreSQL connection URL, using `host.docker.internal` as the host when PostgreSQL is started separately with `database/docker-compose.yaml`. Then start the services from the repository root:
+Set the agent's Google API credentials in `agents/agent-pipeline/medical_agent/.env`, then start the full stack—including PostgreSQL—from the repository root:
 
 ```sh
-docker compose -f database/docker-compose.yaml up -d
 docker compose up --build
 ```
 
-The medical agent API is available at `http://127.0.0.1:8080`, and the database API at `http://127.0.0.1:8001`. Both are bound to the local machine only. The agent connects to `database-api:8001` over the Compose network by default.
+Compose starts PostgreSQL, waits for it to be healthy, and then starts the database API and medical agent. All three containers share the `medical-assistant` bridge network; the database API connects to PostgreSQL by its Compose service name, `postgres`. The database uses the default development credentials (`postgres` / `mysecretpassword`, database `my_app`). Set `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` in the repository-root `.env` to override them; `DATABASE_URL` can also be set there when using an existing external database. Do not use the development password in production.
+
+The medical agent API is available at `http://127.0.0.1:8080`, and the database API at `http://127.0.0.1:8001`. PostgreSQL is published only on localhost at port `5432`; the application containers connect to it through the private Compose network.

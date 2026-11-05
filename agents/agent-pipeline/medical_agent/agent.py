@@ -40,3 +40,21 @@ root_agent = Agent(
 #     -Body $body
 
 # $response | ConvertTo-Json -Depth 20
+
+
+# bash
+# curl -sS -X POST 'http://127.0.0.1:8080/run' \
+#   -H 'Content-Type: application/json' \
+#   --data-binary @- <<'JSON' | jq .
+# {
+#   "app_name": "medical_agent",
+#   "user_id": "u_123",
+#   "session_id": "s_123",
+#   "new_message": {
+#     "role": "user",
+#     "parts": [
+#       { "text": "is there any doctor available at 5pm?" }
+#     ]
+#   }
+# }
+# JSON
