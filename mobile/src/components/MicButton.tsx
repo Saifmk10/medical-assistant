@@ -5,7 +5,7 @@
 // (see context/VoiceAssistantContext.tsx). The pulsing rings only
 // animate while `state === 'listening'`.
 // =============================================================
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Animated, Easing, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, shadow } from '../theme';
@@ -17,7 +17,7 @@ interface MicButtonProps {
 }
 
 export function MicButton({ state, onPress }: MicButtonProps) {
-  const pulse = useRef(new Animated.Value(0)).current;
+  const [pulse] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     if (state !== 'listening') {
@@ -55,7 +55,7 @@ export function MicButton({ state, onPress }: MicButtonProps) {
       )}
       <TouchableOpacity
         accessibilityRole="button"
-        accessibilityLabel="Toggle voice assistant listening"
+        accessibilityLabel={state === 'idle' ? 'Start voice assistant' : 'Stop voice assistant'}
         activeOpacity={0.85}
         onPress={onPress}
         style={[styles.button, { backgroundColor }]}
