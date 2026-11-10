@@ -5,10 +5,39 @@ import asyncio
 import inspect
 import logging
 import traceback
+import uuid
 
 logger = logging.getLogger(__name__)
 from google import genai
 from google.genai import types
+
+from service_api.agent_api import ask_medical_agent
+
+SYSTEM_INSTRUCTION = (
+    "Concise voice medical assistant. Answer general health questions briefly; no diagnoses; advise seeing a doctor "
+    "for serious issues; for emergencies say to call emergency services. "
+    "For ANY doctor, availability, booking, rescheduling, cancelling or appointment request, always call "
+    "medical_agent_request with the user's full request and relay its answer briefly. Never invent doctors, times or bookings."
+)
+
+MEDICAL_AGENT_TOOL = types.Tool(
+    function_declarations=[
+        types.FunctionDeclaration(
+            name="medical_agent_request",
+            description="Medical appointment agent: doctor lookup, availability, book, reschedule, cancel, view appointments.",
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "request": types.Schema(
+                        type=types.Type.STRING,
+                        description="User's request with all details given.",
+                    )
+                },
+                required=["request"],
+            ),
+        )
+    ]
+)
 
 class GeminiLive:
     """
@@ -29,10 +58,19 @@ class GeminiLive:
         self.model = model
         self.input_sample_rate = input_sample_rate
         self.client = genai.Client(api_key=api_key)
-        self.tools = tools or []
-        self.tool_mapping = tool_mapping or {}
+        # One agent session per GeminiLive instance so the agent keeps context across a conversation.
+        self.agent_user_id = "voice_user"
+        self.agent_session_id = f"voice_{uuid.uuid4().hex}"
+        self.tools = tools if tools is not None else [MEDICAL_AGENT_TOOL]
+        self.tool_mapping = tool_mapping if tool_mapping is not None else {
+            "medical_agent_request": self._medical_agent_request
+        }
 
-    async def start_session(self, audio_input_queue, video_input_queue, text_input_queue, audio_output_callback, audio_interrupt_callback=None):
+    def _medical_agent_request(self, request):
+        return ask_medical_agent(self.agent_user_id, self.agent_session_id, request)
+
+    async def start_session(self, audio_input_queue, text_input_queue, audio_output_callback, audio_interrupt_callback=None, video_input_queue=None):
+        # video_input_queue is accepted for caller compatibility but video/images are not sent to Gemini.
         config = types.LiveConnectConfig(
             response_modalities=[types.Modality.AUDIO],
             speech_config=types.SpeechConfig(
@@ -42,7 +80,7 @@ class GeminiLive:
                     )
                 )
             ),
-            system_instruction=types.Content(parts=[types.Part(text="You are a helpful AI assistant. Keep your responses concise. Speak in a friendly Irish accent. You can see the user's camera or screen which is shared as realtime input images with you.")]),
+            system_instruction=types.Content(parts=[types.Part(text=SYSTEM_INSTRUCTION)]),
             input_audio_transcription=types.AudioTranscriptionConfig(),
             output_audio_transcription=types.AudioTranscriptionConfig(),
             realtime_input_config=types.RealtimeInputConfig(
@@ -67,19 +105,6 @@ class GeminiLive:
                     logger.debug("send_audio task cancelled")
                 except Exception as e:
                     logger.error(f"send_audio error: {e}\n{traceback.format_exc()}")
-
-            async def send_video():
-                try:
-                    while True:
-                        chunk = await video_input_queue.get()
-                        logger.info(f"Sending video frame to Gemini: {len(chunk)} bytes")
-                        await session.send_realtime_input(
-                            video=types.Blob(data=chunk, mime_type="image/jpeg")
-                        )
-                except asyncio.CancelledError:
-                    logger.debug("send_video task cancelled")
-                except Exception as e:
-                    logger.error(f"send_video error: {e}\n{traceback.format_exc()}")
 
             async def send_text():
                 try:
@@ -174,7 +199,6 @@ class GeminiLive:
                     await event_queue.put(None)
 
             send_audio_task = asyncio.create_task(send_audio())
-            send_video_task = asyncio.create_task(send_video())
             send_text_task = asyncio.create_task(send_text())
             receive_task = asyncio.create_task(receive_loop())
 
@@ -191,7 +215,6 @@ class GeminiLive:
             finally:
                 logger.info("Cleaning up Gemini Live session tasks")
                 send_audio_task.cancel()
-                send_video_task.cancel()
                 send_text_task.cancel()
                 receive_task.cancel()
         except Exception as e:
