@@ -79,7 +79,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
                 if message.get("bytes"):
                     await audio_input_queue.put(message["bytes"])
-                elif message.get("text"):
+                elif message.get("text"): #this is for text input 
                     text = message["text"]
                     try:
                         payload = json.loads(text)
@@ -127,67 +127,67 @@ async def websocket_endpoint(websocket: WebSocket):
 
 # ─── Twilio Endpoints ─────────────────────────────────────────────────────────
 
-@app.post("/twilio/inbound")
-async def twilio_inbound():
-    """Handles inbound Twilio calls. Returns TwiML to open a media stream."""
-    host = TWILIO_APP_HOST or "localhost:8000"
-    twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Say>Connecting to Gemini Live.</Say>
-    <Connect>
-        <Stream url="wss://{host}/twilio/stream" />
-    </Connect>
-</Response>"""
-    return Response(content=twiml, media_type="application/xml")
+# @app.post("/twilio/inbound")
+# async def twilio_inbound():
+#     """Handles inbound Twilio calls. Returns TwiML to open a media stream."""
+#     host = TWILIO_APP_HOST or "localhost:8000"
+#     twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
+# <Response>
+#     <Say>Connecting to Gemini Live.</Say>
+#     <Connect>
+#         <Stream url="wss://{host}/twilio/stream" />
+#     </Connect>
+# </Response>"""
+#     return Response(content=twiml, media_type="application/xml")
 
 
-@app.post("/twilio/outbound")
-async def twilio_outbound(
-    to_number: str = Query(..., description="Destination phone number (E.164 format)"),
-    from_number: str = Query(..., description="Your Twilio phone number (E.164 format)"),
-):
-    """Initiates an outbound Twilio call that connects to Gemini Live."""
-    if not TWILIO_ACCOUNT_SID or not TWILIO_AUTH_TOKEN:
-        return {"error": "TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN must be set in environment"}
-    if not TWILIO_APP_HOST:
-        return {"error": "TWILIO_APP_HOST must be set in environment"}
+# @app.post("/twilio/outbound")
+# async def twilio_outbound(
+#     to_number: str = Query(..., description="Destination phone number (E.164 format)"),
+#     from_number: str = Query(..., description="Your Twilio phone number (E.164 format)"),
+# ):
+#     """Initiates an outbound Twilio call that connects to Gemini Live."""
+#     if not TWILIO_ACCOUNT_SID or not TWILIO_AUTH_TOKEN:
+#         return {"error": "TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN must be set in environment"}
+#     if not TWILIO_APP_HOST:
+#         return {"error": "TWILIO_APP_HOST must be set in environment"}
 
-    from twilio.rest import Client as TwilioClient
+#     from twilio.rest import Client as TwilioClient
 
-    client = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-    twiml = f"""<Response>
-    <Say>Connecting to Gemini Live.</Say>
-    <Connect>
-        <Stream url="wss://{TWILIO_APP_HOST}/twilio/stream" />
-    </Connect>
-</Response>"""
+#     client = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+#     twiml = f"""<Response>
+#     <Say>Connecting to Gemini Live.</Say>
+#     <Connect>
+#         <Stream url="wss://{TWILIO_APP_HOST}/twilio/stream" />
+#     </Connect>
+# </Response>"""
 
-    call = client.calls.create(
-        to=to_number,
-        from_=from_number,
-        twiml=twiml,
-    )
-    logger.info(f"Outbound call initiated: {call.sid}")
-    return {"callSid": call.sid, "status": call.status}
+#     call = client.calls.create(
+#         to=to_number,
+#         from_=from_number,
+#         twiml=twiml,
+#     )
+#     logger.info(f"Outbound call initiated: {call.sid}")
+#     return {"callSid": call.sid, "status": call.status}
 
+# not being used currently 
+# @app.websocket("/twilio/stream")
+# async def twilio_stream(websocket: WebSocket):
+#     """WebSocket endpoint for Twilio Media Streams."""
+#     await websocket.accept()
+#     logger.info("Twilio media stream WebSocket connected")
 
-@app.websocket("/twilio/stream")
-async def twilio_stream(websocket: WebSocket):
-    """WebSocket endpoint for Twilio Media Streams."""
-    await websocket.accept()
-    logger.info("Twilio media stream WebSocket connected")
-
-    handler = TwilioHandler(gemini_api_key=GEMINI_API_KEY, model=MODEL)
-    try:
-        await handler.handle_media_stream(websocket)
-    except Exception as e:
-        logger.error(f"Twilio stream error: {e}", exc_info=True)
-    finally:
-        try:
-            await websocket.close()
-        except Exception:
-            pass
-        logger.info("Twilio media stream WebSocket closed")
+#     handler = TwilioHandler(gemini_api_key=GEMINI_API_KEY, model=MODEL)
+#     try:
+#         await handler.handle_media_stream(websocket)
+#     except Exception as e:
+#         logger.error(f"Twilio stream error: {e}", exc_info=True)
+#     finally:
+#         try:
+#             await websocket.close()
+#         except Exception:
+#             pass
+#         logger.info("Twilio media stream WebSocket closed")
 
 
 if __name__ == "__main__":
