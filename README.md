@@ -40,12 +40,16 @@ This project is a proof of concept focused on the patient-facing healthcare book
 
 ## Run the medical agent with Docker
 
-Set the agent's Google API credentials in `agents/agent-pipeline/medical_agent/.env`, then start the full stack—including PostgreSQL—from the repository root:
+Set `POSTGRES_PASSWORD` and `GEMINI_API_KEY` in the repository-root `.env` file, and set the agent's Google API credentials in `agents/agent-pipeline/medical_agent/.env`. Keep both files local and never commit them. Use a unique, strong database password; no default password is provided. Then start the full stack—including PostgreSQL and Caddy—from the repository root:
 
 ```sh
+docker volume create pdk_caddy_data
+docker volume create pdk_caddy_config
 docker compose up --build
 ```
 
-Compose starts PostgreSQL, waits for it to be healthy, and then starts the database API and medical agent. All three containers share the `medical-assistant` bridge network; the database API connects to PostgreSQL by its Compose service name, `postgres`. The database uses the default development credentials (`postgres` / `mysecretpassword`, database `my_app`). Set `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` in the repository-root `.env` to override them; `DATABASE_URL` can also be set there when using an existing external database. Do not use the development password in production.
+Compose starts PostgreSQL, waits for it to be healthy, and then starts the database API, medical agent, and Caddy reverse proxy. Caddy's configuration is in [`rev_proxy/Caddyfile`](./rev_proxy/Caddyfile); certificate and configuration state are persisted in the `pdk_caddy_data` and `pdk_caddy_config` Docker volumes. Set `POSTGRES_USER` and `POSTGRES_DB` in the repository-root `.env` to override their non-secret defaults. `DATABASE_URL` can also be set there when using an existing external database.
 
-The medical agent API is available at `http://127.0.0.1:8080`, and the database API at `http://127.0.0.1:8001`. PostgreSQL is published only on localhost at port `5432`; the application containers connect to it through the private Compose network.
+Run only one Caddy service on ports 80 and 443. On hosts that already manage Caddy with a separate Compose project, mount `rev_proxy/Caddyfile` in that project and omit the main Compose project's `caddy` service. Recreate the active Caddy service after editing the file to ensure it reads the current bind-mounted file.
+
+The medical agent API is available through Caddy at `https://api.saifmk.online/med-agent/`. The voice API is available at `https://api.saifmk.online/medical-voice-api/` and is proxied to the `voice-api` Compose service on port `8000`; the prefix is stripped before requests reach the service. The medical agent is also available locally at `http://127.0.0.1:8080`, and the database API at `http://127.0.0.1:8001`. PostgreSQL is published only on localhost at port `5432`; the application containers connect to it through the private Compose network.
