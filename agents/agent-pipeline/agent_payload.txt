@@ -1,0 +1,116 @@
+Medical Assistant service smoke tests
+=====================================
+
+Last tested: 2026-11-10, from the VM. These tests use synthetic messages, not
+patient information. Do not put API keys, passwords, or real patient data in
+this file.
+
+1. Caddy reverse proxy
+---------------------
+The active proxy is routing-caddy-1, managed by /home/ec2-user/routing/
+docker-compose.yml, and it mounts rev_proxy/Caddyfile from this repository.
+The medical-assistant Compose project's caddy container is not the active
+proxy. Only one Caddy should bind ports 80 and 443.
+
+  curl -fsS -o /dev/null -w 'agent docs: %{http_code}\n' \
+    https://api.saifmk.online/med-agent/docs
+  curl -fsS -o /dev/null -w 'voice docs: %{http_code}\n' \
+    https://api.saifmk.online/medical-voice-api/docs
+
+Observed: both returned HTTP 200.
+
+2. Medical agent
+----------------
+Create a temporary session, send a harmless text message, then remove the
+session. The POST /run response is a JSON array of events.
+
+  BASE=https://api.saifmk.online/med-agent
+  USER_ID="smoke-test-$(cat /proc/sys/kernel/random/uuid)"
+  SESSION_ID=smoke-test
+  SESSION_URL="$BASE/apps/medical_agent/users/$USER_ID/sessions/$SESSION_ID"
+
+  curl -fsS -X POST "$SESSION_URL" \
+    -H 'Content-Type: application/json' -d '{}'
+  printf '\n'
+  curl -fsS -X POST "$BASE/run" -H 'Content-Type: application/json' \
+    -d "{\"app_name\":\"medical_agent\",\"user_id\":\"$USER_ID\",\"session_id\":\"$SESSION_ID\",\"new_message\":{\"role\":\"user\",\"parts\":[{\"text\":\"Hello. What can you help me with?\"}]}}"
+  printf '\n'
+  curl -fsS -X DELETE "$SESSION_URL"
+  printf '\n'
+
+Observed: session creation and deletion returned HTTP 200; /run returned HTTP
+200 with an event containing a text response. This does not test appointment
+booking or database-dependent agent tools.
+
+3. Voice API
+------------
+WebSocket URL: wss://api.saifmk.online/medical-voice-api/ws
+Send a WebSocket text message (not a JSON object):
+
+  Hello, please say hello.
+
+The service sends binary audio chunks and JSON events such as
+{"type":"gemini","text":"..."} and {"type":"turn_complete"}.
+Use voice_modules/api-test.html, or run this test using the WebSocket client
+already installed in the voice container:
+
+sudo docker exec -i medical-assistant-voice-api-1 python - <<'PY'
+import asyncio
+import json
+import websockets
+
+async def main():
+    async with websockets.connect(
+        "wss://api.saifmk.online/medical-voice-api/ws", open_timeout=15
+    ) as socket:
+        await socket.send("Hello, please say hello.")
+        audio_bytes = 0
+        async with asyncio.timeout(45):
+            while True:
+                message = await socket.recv()
+                if isinstance(message, bytes):
+                    audio_bytes += len(message)
+                elif json.loads(message).get("type") == "turn_complete":
+                    break
+        print(f"Turn completed; received {audio_bytes} audio bytes")
+        if audio_bytes == 0:
+            raise RuntimeError("No audio received")
+
+asyncio.run(main())
+PY
+
+Observed: WebSocket connected; the text message produced 185310 bytes of audio,
+a Gemini transcription event, and a turn_complete event.
+
+4. Database API
+---------------
+This API is bound to the VM's localhost, not routed through public Caddy.
+These GET requests have no request body and do not modify appointments:
+
+  curl -fsS http://127.0.0.1:8001/
+  curl -fsS http://127.0.0.1:8001/doctor-details
+
+Observed: / returned HTTP 200. /doctor-details returned HTTP 200 with JSON null,
+not a doctor list; the API catches database connection errors and returns null.
+HTTP 200 alone therefore does not prove that the database is working.
+Doctor records may be returned when the database is available; do not share
+the response publicly.
+
+POST /appointment-booking and /appointment-cancellation accept patient_name,
+doc_name, designation, slot_booking_time, hospital, and contact as query
+parameters. They were not tested because they modify real appointment data.
+In particular, the current cancellation implementation deletes rows matching
+ANY supplied field, so do not use it as a smoke test against real data.
+
+5. PostgreSQL
+-------------
+Observed: postgres-db was stopped and localhost:5432 refused connections, so
+database-backed functionality could not be verified. No SQL payload was sent.
+After the database has been deliberately started and configured, check it with:
+
+  sudo docker exec postgres-db sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+  sudo docker exec postgres-db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 1;"'
+
+The SQL payload is SELECT 1; and does not modify data. Successful connectivity
+does not by itself prove the application schema or database API is working;
+repeat the doctor-details check as well.

@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from gemini_live import GeminiLive
 from twilio_handler import TwilioHandler
+from google.genai import types
 
 # Load environment variables
 load_dotenv()
