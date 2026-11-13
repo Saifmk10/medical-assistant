@@ -1,0 +1,10 @@
+{
+  "name": "medical-assistant-auth-check",
+  "private": true,
+  "scripts": {
+    "check:google-auth": "node supabase-google-auth.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.0"
+  }
+}
