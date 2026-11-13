@@ -16,6 +16,7 @@
     "react": "19.2.3",
     "react-dom": "^19.2.3",
     "react-native": "0.86.3",
+    "react-native-audio-api": "^1.0.0",
     "react-native-gesture-handler": "~2.32.0",
     "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
@@ -24,7 +25,6 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
-    "dotenv": "^18.0.9",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~57.0.2",
     "typescript": "~6.0.3"
@@ -37,9 +37,7 @@
     "lint": "expo lint"
   },
   "private": true,
-  "expo": {
-    "autolinking": {
-      "nativeModulesDir": "./modules"
-    }
+  "react-native-audio-api": {
+    "disableStaticExternalLibs": true
   }
 }

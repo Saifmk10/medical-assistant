@@ -51,9 +51,7 @@
     }
 
     function websocketUrl() {
-      const scheme = location.protocol === "https:" ? "wss" : "ws";
-      return `${scheme}://${location.hostname || "127.0.0.1"}:8010/ws`;
-      // return "wss://api.saifmk.online/medical-voice-api/ws";
+      return "wss://api.saifmk.online/medical-voice-api/ws";
     }
 
     function connect() {
