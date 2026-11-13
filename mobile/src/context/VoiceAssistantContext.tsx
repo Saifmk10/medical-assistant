@@ -1,12 +1,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import Constants from 'expo-constants';
 import {
   requestRecordingPermissionsAsync,
   setAudioModeAsync,
   useAudioStream,
 } from 'expo-audio';
 import type { AudioStreamBuffer } from 'expo-audio';
-import { GeminiLiveSession } from '../services/voiceService';
+import { VoiceSession } from '../services/voiceService';
+import { PcmAudioPlayer } from '../services/pcmAudioPlayer';
 import type { ConversationMessage, VoiceAssistantState } from '../types';
 
 interface VoiceAssistantContextValue {
@@ -30,15 +30,15 @@ const initialGreeting: ConversationMessage = {
 export function VoiceAssistantProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<VoiceAssistantState>('idle');
   const [messages, setMessages] = useState<ConversationMessage[]>([initialGreeting]);
-  const session = useRef<GeminiLiveSession | null>(null);
+  const session = useRef<VoiceSession | null>(null);
   const connecting = useRef(false);
   const cancelled = useRef(false);
   const activeInputId = useRef<string | null>(null);
   const activeResponseId = useRef<string | null>(null);
   const responseText = useRef('');
   const microphoneMuted = useRef(false);
-  const unmuteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const microphoneHandler = useRef<(buffer: AudioStreamBuffer) => void>(() => {});
+  const audioPlayer = useRef<PcmAudioPlayer | null>(null);
   const { stream: microphoneStream } = useAudioStream({
     sampleRate: 16_000,
     channels: 1,
@@ -46,11 +46,19 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
     onBuffer: (buffer) => microphoneHandler.current(buffer),
   });
 
+  const stopReplyAudio = useCallback(() => {
+    void audioPlayer.current?.close().catch((error: unknown) => {
+      console.error('Could not stop voice response audio:', error);
+    });
+    audioPlayer.current = null;
+  }, []);
+
   const toggleListening = useCallback(async () => {
     if (session.current || connecting.current) {
       cancelled.current = true;
       session.current?.close();
       session.current = null;
+      stopReplyAudio();
       microphoneMuted.current = false;
       activeInputId.current = null;
       activeResponseId.current = null;
@@ -68,11 +76,6 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
     setState('processing');
 
     try {
-      const apiKey = Constants.expoConfig?.extra?.geminiApiKey;
-      if (typeof apiKey !== 'string' || !apiKey.trim()) {
-        throw new Error('GEMINI_API_KEY is missing from the repository root .env file.');
-      }
-
       const permission = await requestRecordingPermissionsAsync();
       if (!permission.granted) throw new Error('Microphone permission is required for voice chat.');
       if (cancelled.current) return;
@@ -83,9 +86,26 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
         interruptionMode: 'doNotMix',
       });
 
-      const liveSession = new GeminiLiveSession({
-        onReady: () => setState('listening'),
-        onInputTranscript: (text, isFinal) => {
+      const playback = new PcmAudioPlayer(
+        () => setState('responding'),
+        () => {
+          microphoneMuted.current = false;
+          if (session.current) setState('listening');
+        },
+      );
+      audioPlayer.current = playback;
+      await playback.resume();
+      if (cancelled.current) {
+        await playback.close();
+        audioPlayer.current = null;
+        return;
+      }
+
+      const liveSession = new VoiceSession({
+        onReady: () => {
+          if (!cancelled.current) setState('listening');
+        },
+        onInputTranscript: (text) => {
           const id = activeInputId.current ?? nextId();
           activeInputId.current = id;
           setMessages((previous) => {
@@ -99,10 +119,8 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
             if (existing < 0) return [...previous, transcript];
             return previous.map((message, index) => index === existing ? transcript : message);
           });
-          if (isFinal) {
-            activeInputId.current = null;
-            setState('processing');
-          }
+          activeInputId.current = null;
+          setState('processing');
         },
         onOutputTranscript: (text) => {
           microphoneMuted.current = true;
@@ -125,19 +143,40 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
         onTurnComplete: () => {
           responseText.current = '';
           activeResponseId.current = null;
-          // Keep the mic muted briefly so buffered speech isn't picked up as input.
-          unmuteTimer.current = setTimeout(() => {
+          try {
+            playback.finishTurn();
+          } catch (error) {
+            const message = error instanceof Error ? error.message : 'Could not finish voice response audio.';
+            setMessages((previous) => [...previous, {
+              id: nextId(),
+              role: 'assistant',
+              text: message,
+              timestamp: Date.now(),
+            }]);
+            stopReplyAudio();
             microphoneMuted.current = false;
             if (session.current) setState('listening');
-          }, 500);
+          }
         },
-        onAudioStart: () => {
-          if (unmuteTimer.current) clearTimeout(unmuteTimer.current);
-          unmuteTimer.current = null;
-          microphoneMuted.current = true;
-          setState('responding');
+        onAudio: (data) => {
+          try {
+            microphoneMuted.current = true;
+            playback.enqueue(data);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : 'Could not process voice response audio.';
+            setMessages((previous) => [...previous, {
+              id: nextId(),
+              role: 'assistant',
+              text: message,
+              timestamp: Date.now(),
+            }]);
+            stopReplyAudio();
+            microphoneMuted.current = false;
+            if (session.current) setState('listening');
+          }
         },
         onInterrupted: () => {
+          playback.interrupt();
           microphoneMuted.current = false;
           activeResponseId.current = null;
           responseText.current = '';
@@ -146,6 +185,7 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
         onError: (message) => {
           liveSession.close();
           if (session.current === liveSession) session.current = null;
+          stopReplyAudio();
           microphoneMuted.current = false;
           activeInputId.current = null;
           activeResponseId.current = null;
@@ -161,7 +201,7 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
         },
       });
       session.current = liveSession;
-      await liveSession.connect(apiKey);
+      await liveSession.connect();
       if (cancelled.current) {
         liveSession.close();
         session.current = null;
@@ -184,7 +224,7 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
       activeResponseId.current = null;
       responseText.current = '';
       if (!cancelled.current) {
-        const message = error instanceof Error ? error.message : 'Could not start Gemini Live voice chat.';
+        const message = error instanceof Error ? error.message : 'Could not start voice chat.';
         setMessages((previous) => [...previous, {
           id: nextId(),
           role: 'assistant',
@@ -196,12 +236,13 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
     } finally {
       connecting.current = false;
     }
-  }, [microphoneStream]);
+  }, [microphoneStream, stopReplyAudio]);
 
   const reset = useCallback(() => {
     cancelled.current = true;
     session.current?.close();
     session.current = null;
+    stopReplyAudio();
     microphoneStream.stop();
     activeInputId.current = null;
     activeResponseId.current = null;
@@ -215,20 +256,21 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
         timestamp: Date.now(),
       },
     ]);
-  }, [microphoneStream]);
+  }, [microphoneStream, stopReplyAudio]);
 
   useEffect(() => () => {
     cancelled.current = true;
     session.current?.close();
+    session.current = null;
     microphoneMuted.current = false;
     microphoneStream.stop();
-    if (unmuteTimer.current) clearTimeout(unmuteTimer.current);
-  }, [microphoneStream]);
+    stopReplyAudio();
+  }, [microphoneStream, stopReplyAudio]);
 
   useEffect(() => {
     microphoneHandler.current = (buffer) => {
       if (microphoneMuted.current) return;
-      session.current?.sendMicrophoneAudio(buffer.data, buffer.sampleRate);
+      session.current?.sendMicrophoneAudio(buffer.data);
     };
   }, []);
 
