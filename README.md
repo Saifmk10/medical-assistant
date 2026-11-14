@@ -40,7 +40,7 @@ This project is a proof of concept focused on the patient-facing healthcare book
 
 ## Run the medical agent with Docker
 
-Set `POSTGRES_PASSWORD` and `GEMINI_API_KEY` in the repository-root `.env` file, and set the agent's Google API credentials in `agents/agent-pipeline/medical_agent/.env`. Keep both files local and never commit them. Use a unique, strong database password; no default password is provided. Then start the full stack—including PostgreSQL and Caddy—from the repository root:
+Set `DATABASE_URL` and `GEMINI_API_KEY` in the repository-root `.env` file, and set the agent's Google API credentials in `agents/agent-pipeline/medical_agent/.env`. Keep both files local and never commit them. Start PostgreSQL separately, then start the application stack and Caddy from the repository root:
 
 ```sh
 docker volume create pdk_caddy_data
@@ -48,8 +48,25 @@ docker volume create pdk_caddy_config
 docker compose up --build
 ```
 
-Compose starts PostgreSQL, waits for it to be healthy, and then starts the database API, medical agent, and Caddy reverse proxy. Caddy's configuration is in [`rev_proxy/Caddyfile`](./rev_proxy/Caddyfile); certificate and configuration state are persisted in the `pdk_caddy_data` and `pdk_caddy_config` Docker volumes. Set `POSTGRES_USER` and `POSTGRES_DB` in the repository-root `.env` to override their non-secret defaults. `DATABASE_URL` can also be set there when using an existing external database.
+Compose starts the database API, medical agent, and Caddy reverse proxy; it does not start or wait for PostgreSQL. Caddy's configuration is in [`rev_proxy/Caddyfile`](./rev_proxy/Caddyfile); certificate and configuration state are persisted in the `pdk_caddy_data` and `pdk_caddy_config` Docker volumes.
+
+The database API uses `DATABASE_URL` as provided. For a PostgreSQL server running directly on the Docker host, `localhost` in this URL refers to the API container, not the host. Use a host-reachable address such as `host.docker.internal`, and configure PostgreSQL's listening address and access rules to allow the Docker connection. Restrict access to trusted networks.
 
 Run only one Caddy service on ports 80 and 443. On hosts that already manage Caddy with a separate Compose project, mount `rev_proxy/Caddyfile` in that project and omit the main Compose project's `caddy` service. Recreate the active Caddy service after editing the file to ensure it reads the current bind-mounted file.
 
-The medical agent API is available through Caddy at `https://api.saifmk.online/med-agent/`. The voice API is available at `https://api.saifmk.online/medical-voice-api/` and is proxied to the `voice-api` Compose service on port `8000`; the prefix is stripped before requests reach the service. The medical agent is also available locally at `http://127.0.0.1:8080`, and the database API at `http://127.0.0.1:8001`. PostgreSQL is published only on localhost at port `5432`; the application containers connect to it through the private Compose network.
+The medical agent API is available through Caddy at `https://api.saifmk.online/med-agent/`. The voice API is available at `https://api.saifmk.online/medical-voice-api/` and is proxied to the `voice-api` Compose service on port `8000`; the prefix is stripped before requests reach the service. The medical agent is also available locally at `http://127.0.0.1:8080`, and the database API at `http://127.0.0.1:8001`.
+
+### User profile database functions
+
+`database/services/generic_api/authentication_api.py` provides `new_users(id,
+username, email)`, `get_user(user_id)`, `update_user_name(user_id, full_name)`,
+and `delete_user(user_id)`. The last three return the profile as a dictionary,
+or `None` when it does not exist. `new_users` returns a success message.
+Database errors are returned as error objects. These functions require
+`DATABASE_URL` and an existing `app_data.users` table with `id`, `full_name`,
+and `email` columns.
+
+The [database API](./database/services/README.md) exposes these functions as
+endpoints, but they do not authenticate callers. An authenticated API must
+verify the Supabase access token and derive the user ID from it before calling
+them. Deleting a profile does not delete the Supabase authentication account.
