@@ -1,23 +1,23 @@
 services:
-  postgres:
-    image: postgres:18
-    container_name: postgres-db
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the repository-root .env file or environment}
-      POSTGRES_DB: ${POSTGRES_DB:-my_app}
-    ports:
-      - "127.0.0.1:5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql
-    networks:
-      - medical-assistant
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    restart: unless-stopped
+  # postgres:
+  #   image: postgres:18
+  #   container_name: postgres-db
+  #   environment:
+  #     POSTGRES_USER: ${POSTGRES_USER:-postgres}
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the repository-root .env file or environment}
+  #     POSTGRES_DB: ${POSTGRES_DB:-my_app}
+  #   ports:
+  #     - "127.0.0.1:5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql
+  #   networks:
+  #     - medical-assistant
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 10
+  #   restart: unless-stopped
 
   medical-agent:
     build:
@@ -45,10 +45,9 @@ services:
     ports:
       - "127.0.0.1:8001:8001"
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the repository-root .env file or environment}@postgres:5432/${POSTGRES_DB:-my_app}}
-    depends_on:
-      postgres:
-        condition: service_healthy
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in the repository-root .env file or environment}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - medical-assistant
     restart: unless-stopped
@@ -76,7 +75,7 @@ services:
       - ./rev_proxy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
-    depends_on:
+    depends_on: #only add something where the container needs to start when this container starts
       - medical-agent
       - voice-api
     networks:

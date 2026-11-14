@@ -3,6 +3,10 @@ api.saifmk.online {
 		reverse_proxy medical-agent:8002
 	}
 
+	handle_path /database-api/* {
+    reverse_proxy database-api:8001
+	}
+
 	handle_path /medical-voice-api/* {
 		reverse_proxy voice-api:8000
 	}
