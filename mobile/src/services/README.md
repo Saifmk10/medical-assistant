@@ -5,7 +5,8 @@ The data-access layer — every screen fetches data through these functions inst
 ## Files
 
 - **config.ts** — `API_BASE_URL` (points at the FastAPI backend in `/services/main.py`) and the `USE_MOCK_DATA` flag. Flip `USE_MOCK_DATA` to `false` once real endpoints exist.
-- **apiClient.ts** — Thin `fetch` wrapper (`apiGet`, `apiPost`) with shared error handling. Add auth headers / retry logic here once needed.
+- **apiClient.ts** — Thin `fetch` wrapper with shared error handling.
+- **profileService.ts** — Uses the existing unauthenticated database user endpoints to look up and create a profile when needed. Name and email are sent as URL query parameters.
 - **doctorService.ts** — Doctor/provider lookup. Already wired to the real `GET /doctor-details` endpoint (see `services/doctor_details_api.py` in the project root) behind the mock-data flag.
 - **appointmentService.ts** — Appointment CRUD (list, book, cancel, reschedule, available slots). Currently backed by an in-memory copy of the mock data since no appointments API exists yet. Each function documents the REST route it should call once the backend adds one.
 - **voiceService.ts** — WebSocket transport to `wss://api.saifmk.online/medical-voice-api/ws` for microphone PCM, transcript events and assistant PCM audio.

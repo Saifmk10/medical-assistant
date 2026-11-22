@@ -2,7 +2,8 @@
   "name": "medical-assistant-auth-check",
   "private": true,
   "scripts": {
-    "check:google-auth": "node supabase-google-auth.js"
+    "check:google-auth": "node supabase-google-auth.js",
+    "profile-sync": "node profile-sync-server.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.0"

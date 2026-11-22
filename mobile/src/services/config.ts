@@ -10,6 +10,9 @@
 /** Base URL of the FastAPI backend (services/main.py). */
 export const API_BASE_URL = 'http://127.0.0.1:8000';
 
+/** Hosted database API used for authenticated profile sync. */
+export const PROFILE_API_BASE_URL = 'https://api.saifmk.online/database-api';
+
 /** Toggle this to false once real backend endpoints exist for
  * appointments/booking — see services/README.md for the full
  * list of endpoints the UI expects and which ones are still mocked. */

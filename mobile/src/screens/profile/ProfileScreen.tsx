@@ -5,13 +5,13 @@
 // AuthContext.logout() which flips RootNavigator back to Login.
 // =============================================================
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { useAuth } from '../../context/AuthContext';
-import { colors, radii, spacing, typography } from '../../theme';
+import { colors, spacing, typography } from '../../theme';
 
 export function ProfileScreen() {
   const { patient, logout } = useAuth();
@@ -36,7 +36,9 @@ export function ProfileScreen() {
           <InfoRow icon="location-outline" label="Preferred location" value={patient.preferredLocation ?? '—'} />
         </Card>
 
-        <Button label="Sign Out" variant="secondary" onPress={logout} style={styles.signOut} />
+        <Button label="Sign Out" variant="secondary" onPress={() => {
+          logout().catch((error: unknown) => Alert.alert('Sign out failed', error instanceof Error ? error.message : 'Please try again.'));
+        }} style={styles.signOut} />
       </ScrollView>
     </ScreenContainer>
   );

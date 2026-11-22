@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Supabase profile sync test</title>
+</head>
+<body>
+  <h1>Supabase profile sync test</h1>
+  <p>Development only. The database API is unauthenticated and puts profile details in request URLs.</p>
+  <button id="sign-in" type="button" disabled>Sign in with Google</button>
+  <p>
+    <button id="retry" type="button" disabled>Retry database sync</button>
+    <button id="sign-out" type="button" disabled>Sign out</button>
+  </p>
+  <p id="status" role="status" aria-live="polite">Loading sign-in...</p>
+  <pre id="profile"></pre>
+
+  <script src="./node_modules/@supabase/supabase-js/dist/umd/supabase.js"></script>
+  <script>
+    (() => {
+      'use strict';
+      const apiUrl = 'https://api.saifmk.online/database-api';
+      const signInButton = document.getElementById('sign-in');
+      const retryButton = document.getElementById('retry');
+      const signOutButton = document.getElementById('sign-out');
+      const status = document.getElementById('status');
+      const profileElement = document.getElementById('profile');
+      let client;
+      let user;
+
+      function showStatus(message) {
+        status.textContent = message;
+      }
+
+      function setBusy(busy) {
+        signInButton.disabled = busy || !client || !!user;
+        retryButton.disabled = busy || !user;
+        signOutButton.disabled = busy || !user;
+      }
+
+      function createClient(config) {
+        if (!window.supabase) throw new Error('Supabase client not found. Run npm install in the tests folder.');
+        return window.supabase.createClient(config.url, config.key, {
+          auth: {
+            flowType: 'pkce',
+            persistSession: true,
+            storage: window.sessionStorage,
+            autoRefreshToken: true,
+            detectSessionInUrl: false,
+          },
+        });
+      }
+
+      async function request(path, options) {
+        const response = await fetch(apiUrl + path, options);
+        if (!response.ok) throw new Error(`Database API returned HTTP ${response.status}.`);
+        return response.json();
+      }
+
+      async function syncProfile() {
+        if (!user || !user.id || !user.email) throw new Error('The signed-in account must have an ID and email.');
+        const lookup = new URLSearchParams({ user_id: user.id });
+        const existing = await request(`/get-user?${lookup}`);
+        if (existing !== null) {
+          if (typeof existing === 'object' && !Array.isArray(existing) && existing.id === user.id) {
+            showStatus('Profile already exists in the database; no changes made.');
+            return;
+          }
+          throw new Error('Database lookup failed. Check the database API and PostgreSQL connection.');
+        }
+        const name = user.user_metadata?.full_name;
+        const params = new URLSearchParams({
+          id: user.id,
+          username: typeof name === 'string' && name.trim() ? name : 'Patient',
+          email: user.email,
+        });
+        const result = await request(`/new-user?${params}`, { method: 'POST' });
+        if (!result || typeof result !== 'object' || result.message !== 'User created successfully') {
+          throw new Error('Database profile creation failed. Check the database API and PostgreSQL connection.');
+        }
+        showStatus('Profile created in the database.');
+      }
+
+      async function syncWithStatus() {
+        setBusy(true);
+        showStatus('Checking the database profile...');
+        try {
+          await syncProfile();
+        } catch (error) {
+          showStatus(`Profile sync failed: ${error.message}`);
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      async function loadUser() {
+        const { data, error } = await client.auth.getUser();
+        if (error) throw error;
+        if (!data.user) throw new Error('Supabase did not return a user.');
+        user = data.user;
+        profileElement.textContent = JSON.stringify({
+          id: user.id,
+          full_name: user.user_metadata?.full_name || 'Patient',
+          email: user.email,
+        }, null, 2);
+        await syncWithStatus();
+      }
+
+      signInButton.addEventListener('click', async () => {
+        setBusy(true);
+        try {
+          const redirectTo = `${location.origin}${location.pathname}`;
+          const { error } = await client.auth.signInWithOAuth({
+            provider: 'google',
+            options: { redirectTo },
+          });
+          if (error) throw error;
+          showStatus('Redirecting to Google...');
+        } catch (error) {
+          showStatus(`Sign-in failed: ${error.message}`);
+          setBusy(false);
+        }
+      });
+
+      retryButton.addEventListener('click', syncWithStatus);
+      signOutButton.addEventListener('click', async () => {
+        setBusy(true);
+        try {
+          const { error } = await client.auth.signOut({ scope: 'local' });
+          if (error) throw error;
+          user = undefined;
+          profileElement.textContent = '';
+          showStatus('Signed out.');
+        } catch (error) {
+          showStatus(`Sign-out failed: ${error.message}`);
+        } finally {
+          setBusy(false);
+        }
+      });
+
+      async function restore() {
+        const callback = new URL(location.href);
+        const code = callback.searchParams.get('code');
+        const callbackError = callback.searchParams.get('error_description') || callback.searchParams.get('error');
+        if (code || callbackError) history.replaceState(null, '', callback.pathname);
+        const response = await fetch('/config');
+        if (!response.ok) throw new Error('Could not load Supabase configuration. Start the test server.');
+        const config = await response.json();
+        client = createClient(config);
+        if (callbackError) throw new Error(`Google sign-in failed: ${callbackError}`);
+        if (code) {
+          const { error } = await client.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+        }
+        const { data, error } = await client.auth.getSession();
+        if (error) throw error;
+        if (data.session) await loadUser();
+        else showStatus('Ready to sign in.');
+      }
+
+      setBusy(true);
+      restore().catch((error) => showStatus(`Sign-in failed: ${error.message}`)).finally(() => setBusy(false));
+    })();
+  </script>
+</body>
+</html>
