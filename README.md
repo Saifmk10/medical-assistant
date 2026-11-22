@@ -40,7 +40,7 @@ This project is a proof of concept focused on the patient-facing healthcare book
 
 ## Run the medical agent with Docker
 
-Set `DATABASE_URL` and `GEMINI_API_KEY` in the repository-root `.env` file, and set the agent's Google API credentials in `agents/agent-pipeline/medical_agent/.env`. Keep both files local and never commit them. Start PostgreSQL separately, then start the application stack and Caddy from the repository root:
+Set `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` and `GEMINI_API_KEY` in the repository-root `.env` file, and set the agent's Google API credentials in `agents/agent-pipeline/medical_agent/.env`. Keep both files local and never commit them. Start PostgreSQL separately, then start the application stack and Caddy from the repository root:
 
 ```sh
 docker volume create pdk_caddy_data
@@ -66,7 +66,8 @@ Database errors are returned as error objects. These functions require
 `DATABASE_URL` and an existing `app_data.users` table with `id`, `full_name`,
 and `email` columns.
 
-The [database API](./database/services/README.md) exposes these functions as
-endpoints, but they do not authenticate callers. An authenticated API must
-verify the Supabase access token and derive the user ID from it before calling
-them. Deleting a profile does not delete the Supabase authentication account.
+The [database API](./database/services/README.md) also has an authenticated
+profile-sync endpoint that validates the Supabase session and creates a missing
+profile. Its older user CRUD endpoints do not authenticate callers and must
+be restricted until secured. Deleting a profile does not delete the Supabase
+authentication account.

@@ -28,6 +28,27 @@ The mobile app connects to `wss://api.saifmk.online/medical-voice-api/ws`. It st
 
 ## Running the app
 
+### Google sign-in setup
+
+Use Node.js 22. The app reads only `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`
+from the repository-root `.env` during Expo configuration. Alternatively, set
+`EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in the
+build environment. These values are included in the app; use only a publishable
+or legacy anon key, never a secret or service-role key.
+
+Add `medical-assistant://auth/callback` to the Supabase Authentication redirect
+allow list. Google must remain configured with the Supabase project's OAuth
+callback. Rebuild the native app after installing the authentication dependencies:
+Expo Go cannot load the native crypto module. Sessions are stored in native
+secure storage. After sign-in and session restoration, the app calls the hosted
+database API to create the user's profile if it does not exist. A failed sync
+is shown in the app with a retry button. The existing `/get-user` and
+`/new-user` endpoints are unauthenticated, and names and emails are included in
+request URLs and may appear in server logs. See
+[database/services/README.md](../database/services/README.md).
+
+Doctors, appointments and medical history remain demo data. Bookings are not real.
+
 ```bash
 cd mobile
 npm install       # first time only
