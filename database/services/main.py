@@ -26,12 +26,18 @@ def doc():
     return get_doctor_details()
 
 @app.post("/appointment-booking")
-def book_appointment(patient_name: str, doc_name: str, designation: str, slot_booking_time: str, hospital: str, contact: str):
-    return appointment_booking(patient_name, doc_name, designation, slot_booking_time, hospital , contact)
+def book_appointment(uid:str ,patient_name: str, doc_name: str, designation: str, slot_booking_time: str, hospital: str, contact: str):
+    if not uid.strip():
+        raise HTTPException(status_code=422, detail="A non-empty uid is required.")
+    return appointment_booking(uid, patient_name, doc_name, designation, slot_booking_time, hospital , contact)
 
 @app.post("/appointment-cancellation")
-def cancel_appointment(patient_name: str, doc_name: str, designation: str, slot_booking_time: str, hospital: str, contact: str):
-    return appointment_cancellation(patient_name, doc_name, designation, slot_booking_time, hospital , contact)
+def cancel_appointment(uid: str, patient_name: str, doc_name: str, designation: str, slot_booking_time: str, hospital: str, contact: str):
+    if not uid.strip():
+        raise HTTPException(status_code=422, detail="A non-empty uid is required.")
+    if not any(value.strip() for value in (patient_name, doc_name, designation, slot_booking_time, hospital, contact)):
+        raise HTTPException(status_code=422, detail="At least one appointment detail is required.")
+    return appointment_cancellation(uid, patient_name, doc_name, designation, slot_booking_time, hospital , contact)
 
 @app.post("/new-user")
 def create_user(id: str, username: str, email: str):

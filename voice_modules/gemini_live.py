@@ -43,7 +43,7 @@ class GeminiLive:
     """
     Handles the interaction with the Gemini Live API.
     """
-    def __init__(self, api_key, model, input_sample_rate, tools=None, tool_mapping=None):
+    def __init__(self, api_key, model, input_sample_rate, user_id, tools=None, tool_mapping=None):
         """
         Initializes the GeminiLive client.
 
@@ -51,6 +51,7 @@ class GeminiLive:
             api_key (str): The Gemini API Key.
             model (str): The model name to use.
             input_sample_rate (int): The sample rate for audio input.
+            user_id (str): The user ID associated with this voice session.
             tools (list, optional): List of tools to enable. Defaults to None.
             tool_mapping (dict, optional): Mapping of tool names to functions. Defaults to None.
         """
@@ -59,7 +60,7 @@ class GeminiLive:
         self.input_sample_rate = input_sample_rate
         self.client = genai.Client(api_key=api_key)
         # One agent session per GeminiLive instance so the agent keeps context across a conversation.
-        self.agent_user_id = "voice_user"
+        self.agent_user_id = user_id
         self.agent_session_id = f"voice_{uuid.uuid4().hex}"
         self.tools = tools if tools is not None else [MEDICAL_AGENT_TOOL]
         self.tool_mapping = tool_mapping if tool_mapping is not None else {
@@ -182,7 +183,13 @@ class GeminiLive:
                                             id=fc.id,
                                             response={"result": result}
                                         ))
-                                        await event_queue.put({"type": "tool_call", "name": func_name, "args": args, "result": result})
+                                        await event_queue.put({
+                                            "type": "tool_call",
+                                            "user_id": self.agent_user_id,
+                                            "name": func_name,
+                                            "args": args,
+                                            "result": result,
+                                        })
                                 
                                 await session.send_tool_response(function_responses=function_responses)
                         

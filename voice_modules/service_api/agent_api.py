@@ -2,6 +2,7 @@ import json
 import os
 import urllib.error
 import urllib.request
+from urllib.parse import quote
 
 AGENT_BASE_URL = os.getenv("AGENT_API_BASE_URL", "https://api.saifmk.online/med-agent")
 AGENT_APP_NAME = os.getenv("AGENT_APP_NAME", "medical_agent")
@@ -24,7 +25,7 @@ def _post(url, payload):
 def _ensure_session(user_id, session_id):
     if (user_id, session_id) in _known_sessions:
         return
-    url = f"{AGENT_BASE_URL}/apps/{AGENT_APP_NAME}/users/{user_id}/sessions/{session_id}"
+    url = f"{AGENT_BASE_URL}/apps/{AGENT_APP_NAME}/users/{quote(user_id, safe='')}/sessions/{session_id}"
     try:
         _post(url, {})
     except urllib.error.HTTPError as e:

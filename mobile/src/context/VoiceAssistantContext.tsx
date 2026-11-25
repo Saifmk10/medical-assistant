@@ -8,6 +8,7 @@ import {
 import type { AudioStreamBuffer } from 'expo-audio';
 import { VoiceSession } from '../services/voiceService';
 import { PcmAudioPlayer } from '../services/pcmAudioPlayer';
+import { useAuth } from './AuthContext';
 import type { ConversationMessage, VoiceAssistantState } from '../types';
 
 interface VoiceAssistantContextValue {
@@ -50,6 +51,7 @@ function pcmLevel(data: ArrayBuffer): number {
 }
 
 export function VoiceAssistantProvider({ children }: { children: React.ReactNode }) {
+  const { patient } = useAuth();
   const [state, setState] = useState<VoiceAssistantState>('idle');
   const [messages, setMessages] = useState<ConversationMessage[]>([initialGreeting]);
   const session = useRef<VoiceSession | null>(null);
@@ -119,6 +121,16 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
       microphoneStream.stop();
       resetLevels();
       setState('idle');
+      return;
+    }
+
+    if (!patient?.id) {
+      setMessages((previous) => [...previous, {
+        id: nextId(),
+        role: 'assistant',
+        text: 'Sign in before starting voice chat.',
+        timestamp: Date.now(),
+      }]);
       return;
     }
 
@@ -279,7 +291,7 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
         },
       });
       session.current = liveSession;
-      await liveSession.connect();
+      await liveSession.connect(patient.id);
       if (cancelled.current) {
         liveSession.close();
         session.current = null;
