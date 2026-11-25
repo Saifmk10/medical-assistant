@@ -9,7 +9,7 @@ All application source code for the Medical Assistant mobile app, organized so t
 | [theme/](./theme/README.md) | Design tokens: colors (incl. primary `#2868C9`), typography, spacing, shadows. |
 | [types/](./types/README.md) | Shared TypeScript interfaces (`Doctor`, `Appointment`, `Patient`, etc.) — the contract between UI and backend. |
 | [services/](./services/README.md) | All network/data-access calls. **Start here to connect the real backend.** |
-| [data/](./data/README.md) | Hardcoded mock data used until real backend endpoints exist. |
+| [data/](./data/README.md) | Legacy sample data, not used as patient records. |
 | [context/](./context/README.md) | App-wide React state: auth session, appointments, voice assistant conversation. |
 | [navigation/](./navigation/README.md) | React Navigation stack + tab bar setup and route param types. |
 | [components/](./components/README.md) | Reusable, presentational UI building blocks. |
@@ -18,6 +18,5 @@ All application source code for the Medical Assistant mobile app, organized so t
 
 ## Where to plug in the real backend
 
-1. Read [services/README.md](./services/README.md) for the endpoint map (what's live vs. mocked today).
-2. Flip `USE_MOCK_DATA` in `services/config.ts` to `false` once appointment endpoints exist.
-3. Implement the real `fetch` calls inside the relevant `services/*.ts` file — keep function names/return types the same so no screen or component needs to change.
+Read [services/README.md](./services/README.md) for the live endpoints and
+missing patient-scoped functionality before connecting additional services.

@@ -1,12 +1,5 @@
-// =============================================================
-// screens/auth/LoginScreen.tsx — patient sign-in
-// -------------------------------------------------------------
-// Simple phone-number entry that calls AuthContext.login(). In a
-// real build this should trigger an OTP flow against the backend's
-// /auth endpoints before setting the authenticated patient.
-// =============================================================
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
@@ -14,24 +7,24 @@ import { useAuth } from '../../context/AuthContext';
 import { colors, radii, spacing, typography } from '../../theme';
 
 export function LoginScreen() {
-  const { login } = useAuth();
-  const [phone, setPhone] = useState('');
+  const { login, error: configurationError } = useAuth();
+  const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
+    setError(null);
     try {
-      await login(phone);
+      await login();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Sign-in failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <View style={styles.flex}>
       <LinearGradient colors={[colors.primary, colors.primaryDark]} style={styles.hero}>
         <View style={styles.iconWrap}>
           <Ionicons name="medkit" size={34} color={colors.textInverse} />
@@ -41,28 +34,20 @@ export function LoginScreen() {
       </LinearGradient>
 
       <View style={styles.form}>
-        <Text style={styles.label}>Phone number</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g. 98765 43210"
-          placeholderTextColor={colors.textTertiary}
-          keyboardType="phone-pad"
-          value={phone}
-          onChangeText={setPhone}
-          autoComplete="tel"
-        />
+        <Text style={styles.heading}>Welcome</Text>
+        <Text style={styles.description}>Sign in with Google to continue.</Text>
         <Button
-          label="Continue"
+          label="Continue with Google"
           onPress={handleSubmit}
           loading={isSubmitting}
-          disabled={phone.trim().length < 6}
           style={styles.submitButton}
+          icon={<Ionicons name="logo-google" size={20} color={colors.textInverse} />}
         />
-        <Text style={styles.disclaimer}>
-          By continuing you agree to receive appointment updates via SMS and app notifications.
-        </Text>
+        {error || configurationError ? (
+          <Text accessibilityRole="alert" style={styles.error}>{error || configurationError}</Text>
+        ) : null}
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -87,22 +72,8 @@ const styles = StyleSheet.create({
   heroTitle: { ...typography.h1, color: colors.textInverse },
   heroSubtitle: { ...typography.body, color: 'rgba(255,255,255,0.85)', marginTop: 4 },
   form: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.xl },
-  label: { ...typography.label, color: colors.textSecondary, marginBottom: spacing.xs },
-  input: {
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
-    ...typography.bodyLarge,
-    color: colors.textPrimary,
-    backgroundColor: colors.surface,
-  },
+  heading: { ...typography.h2, color: colors.textPrimary },
+  description: { ...typography.body, color: colors.textSecondary, marginTop: spacing.xs },
   submitButton: { marginTop: spacing.lg },
-  disclaimer: {
-    ...typography.caption,
-    color: colors.textTertiary,
-    marginTop: spacing.md,
-    textAlign: 'center',
-  },
+  error: { ...typography.body, color: colors.danger, marginTop: spacing.md },
 });

@@ -19,6 +19,19 @@ def new_users(id, username, email):
         return {"error in user creation": str(e)}
 
 
+def ensure_user(id, full_name, email):
+    with psycopg.connect(os.environ["DATABASE_URL"], row_factory=dict_row) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO app_data.users (id, full_name, email)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (id) DO NOTHING
+                """,
+                (id, full_name, email),
+            )
+
+
 def get_user(user_id):
     try:
         with psycopg.connect(os.environ["DATABASE_URL"], row_factory=dict_row) as connection:
@@ -61,10 +74,3 @@ def delete_user(user_id):
                 return cursor.fetchone()
     except psycopg.Error as e:
         return {"error in deleting user": str(e)}
-
-
-# print(get_user("2c7b57e6-5120-49a9-858e-f48a4ee46a1e"))
-# print(new_users("769023fg29", "O'Brien", "user@example.com"))
-# print(get_user("769023fg29"))
-# print(update_user_name("769023fg29", "New Name"))
-print(delete_user("769023fg29"))

@@ -1,4 +1,5 @@
 import { registerRootComponent } from 'expo';
+import './src/services/setupCrypto';
 
 import App from './App';
 

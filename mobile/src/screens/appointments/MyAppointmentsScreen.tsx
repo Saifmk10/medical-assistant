@@ -17,7 +17,7 @@ import type { RootStackParamList } from '../../navigation/types';
 
 export function MyAppointmentsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { appointments, isLoading } = useAppointments();
+  const { appointments, isLoading, error } = useAppointments();
 
   return (
     <ScreenContainer>
@@ -39,8 +39,8 @@ export function MyAppointmentsScreen() {
           !isLoading ? (
             <EmptyState
               icon="calendar-clear-outline"
-              title="No appointments yet"
-              subtitle="Book one from the Dashboard or the Voice Assistant."
+              title={error ? 'Appointments unavailable' : 'No appointments yet'}
+              subtitle={error ?? 'Your appointments will appear here.'}
             />
           ) : null
         }
