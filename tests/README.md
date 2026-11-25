@@ -55,3 +55,29 @@ $env:PROFILE_SYNC_MODULE = Join-Path $out 'profileService.js'
 Set-Location ..
 node --test tests\profile-sync-client.test.cjs
 ```
+
+## Mobile service tests
+
+From the repository root in PowerShell, with mobile dependencies installed:
+
+```powershell
+$out = Join-Path $env:TEMP 'medical-assistant-mobile-service-tests'
+Set-Location mobile
+npx tsc --ignoreConfig src/services/doctorService.ts src/services/appointmentService.ts src/services/apiClient.ts src/services/config.ts --module commonjs --target es2020 --lib 'es2020,dom' --skipLibCheck --outDir $out
+$env:DOCTOR_SERVICE_MODULE = Join-Path $out 'services\doctorService.js'
+$env:APPOINTMENT_SERVICE_MODULE = Join-Path $out 'services\appointmentService.js'
+Set-Location ..
+node --test tests\mobile-services.test.cjs
+```
+
+## Voice stream lifecycle tests
+
+With the mobile dependencies installed, run from the repository root:
+
+```powershell
+node --test tests\voice-stream-lifecycle.test.cjs tests\pcm-audio-player.test.cjs
+```
+
+These cover the microphone mute and unmute rules, transcript handling, and the
+reply audio player's start and completion timing, including gaps in streamed
+audio before the server's turn-complete event.

@@ -1,10 +1,7 @@
 // =============================================================
 // context/AppointmentsContext.tsx — shared appointment state
 // -------------------------------------------------------------
-// Wraps services/appointmentService.ts so every screen (Dashboard,
-// My Appointments, Booking, Reschedule) reads/writes the same list
-// instead of each fetching independently. Once a real backend exists,
-// only appointmentService.ts needs to change — this context stays the same.
+// Shares appointment state and reports service errors to screens.
 // =============================================================
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import {
@@ -18,6 +15,7 @@ import type { Appointment, AppointmentSlot } from '../types';
 interface AppointmentsContextValue {
   appointments: Appointment[];
   isLoading: boolean;
+  error: string | null;
   refresh: () => Promise<void>;
   bookAppointment: (appointment: Appointment) => Promise<void>;
   cancelAppointment: (id: string) => Promise<void>;
@@ -29,20 +27,44 @@ const AppointmentsContext = createContext<AppointmentsContextValue | undefined>(
 export function AppointmentsProvider({ children }: { children: React.ReactNode }) {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const refresh = useCallback(async () => {
-    setIsLoading(true);
+  const load = useCallback(async () => {
     try {
       const data = await getUpcomingAppointments();
       setAppointments(data);
+      setError(null);
+    } catch (cause: unknown) {
+      setAppointments([]);
+      setError(cause instanceof Error ? cause.message : 'Could not load appointments.');
+      throw cause;
     } finally {
       setIsLoading(false);
     }
   }, []);
 
+  const refresh = useCallback(async () => {
+    setIsLoading(true);
+    await load();
+  }, [load]);
+
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    let active = true;
+    getUpcomingAppointments().then((data) => {
+      if (active) {
+        setAppointments(data);
+        setError(null);
+      }
+    }).catch((cause: unknown) => {
+      if (active) {
+        setAppointments([]);
+        setError(cause instanceof Error ? cause.message : 'Could not load appointments.');
+      }
+    }).finally(() => {
+      if (active) setIsLoading(false);
+    });
+    return () => { active = false; };
+  }, []);
 
   const bookAppointment = useCallback(
     async (appointment: Appointment) => {
@@ -70,7 +92,7 @@ export function AppointmentsProvider({ children }: { children: React.ReactNode }
 
   return (
     <AppointmentsContext.Provider
-      value={{ appointments, isLoading, refresh, bookAppointment, cancelAppointment, rescheduleAppointment }}
+      value={{ appointments, isLoading, error, refresh, bookAppointment, cancelAppointment, rescheduleAppointment }}
     >
       {children}
     </AppointmentsContext.Provider>

@@ -40,14 +40,13 @@ Add `medical-assistant://auth/callback` to the Supabase Authentication redirect
 allow list. Google must remain configured with the Supabase project's OAuth
 callback. Rebuild the native app after installing the authentication dependencies:
 Expo Go cannot load the native crypto module. Sessions are stored in native
-secure storage. After sign-in and session restoration, the app calls the hosted
-database API to create the user's profile if it does not exist. A failed sync
-is shown in the app with a retry button. The existing `/get-user` and
-`/new-user` endpoints are unauthenticated, and names and emails are included in
-request URLs and may appear in server logs. See
-[database/services/README.md](../database/services/README.md).
+secure storage. Database profile sync is disabled; the app displays profile
+information from the signed-in Supabase account.
 
-Doctors, appointments and medical history remain demo data. Bookings are not real.
+The doctor directory uses the hosted doctor API. Appointment lists, booking,
+availability, cancellation, rescheduling and medical history are unavailable
+in the app until suitable backend support exists; demo records are not shown.
+The current cancellation endpoint is unsafe for patient use and is not called.
 
 ```bash
 cd mobile
@@ -61,4 +60,6 @@ Every folder inside `src/` has its own `README.md` explaining what lives there a
 
 ## Connecting the backend
 
-The FastAPI backend lives in `/services` at the project root (`main.py`, `doctor_details_api.py`). All network calls in this app go through `src/services/`, which currently uses mock data for anything the backend doesn't yet expose. Voice chat connects to the hosted voice WebSocket; appointment actions are not connected to the voice flow yet. See [src/services/README.md](./src/services/README.md) for the current endpoint map.
+The FastAPI backend lives in `database/services`. Voice chat connects to the
+hosted voice WebSocket. See [src/services/README.md](./src/services/README.md)
+for the current endpoint map and limitations.

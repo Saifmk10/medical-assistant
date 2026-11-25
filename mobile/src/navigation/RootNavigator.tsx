@@ -5,11 +5,10 @@
 // are pushed on top of the tabs as full-screen stack routes.
 // =============================================================
 import React from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme';
-import { Button } from '../components/Button';
 import type { RootStackParamList } from './types';
 
 import { LoginScreen } from '../screens/auth/LoginScreen';
@@ -21,20 +20,13 @@ import { RescheduleAppointmentScreen } from '../screens/appointments/RescheduleA
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function RootNavigator() {
-  const { isAuthenticated, isLoading, profileSyncError, retryProfileSync } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
     return <View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator color={colors.primary} /></View>;
   }
 
   return (
-    <View style={{ flex: 1 }}>
-    {isAuthenticated && profileSyncError ? (
-      <View style={{ backgroundColor: colors.warningSurface, padding: 8 }}>
-        <Text accessibilityRole="alert" style={{ color: colors.textPrimary, textAlign: 'center' }}>{profileSyncError}</Text>
-        <Button label="Retry profile sync" variant="secondary" onPress={retryProfileSync} />
-      </View>
-    ) : null}
     <Stack.Navigator
       screenOptions={{
         headerStyle: { backgroundColor: colors.surface },
@@ -51,7 +43,7 @@ export function RootNavigator() {
           <Stack.Screen
             name="BookAppointment"
             component={BookAppointmentScreen}
-            options={{ title: 'Book Appointment' }}
+            options={{ title: 'Find a Doctor' }}
           />
           <Stack.Screen
             name="AppointmentDetail"
@@ -66,6 +58,5 @@ export function RootNavigator() {
         </>
       )}
     </Stack.Navigator>
-    </View>
   );
 }

@@ -3,7 +3,6 @@ import { AppState, Platform } from 'react-native';
 import type { Session, User } from '@supabase/supabase-js';
 import * as WebBrowser from 'expo-web-browser';
 import { getSupabase } from '../services/supabase';
-import { syncProfile } from '../services/profileService';
 import type { Patient } from '../types';
 
 const redirectUrl = 'medical-assistant://auth/callback';
@@ -13,8 +12,6 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
-  profileSyncError: string | null;
-  retryProfileSync: () => void;
   login: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -36,12 +33,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [profileSyncError, setProfileSyncError] = useState<string | null>(null);
-  const [syncAttempt, setSyncAttempt] = useState(0);
-  const userId = session?.user.id;
-  const email = session?.user.email;
-  const metadataName = session?.user.user_metadata.full_name;
-  const fullName = typeof metadataName === 'string' && metadataName.trim() ? metadataName : 'Patient';
 
   useEffect(() => {
     let active = true;
@@ -54,7 +45,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (active) {
           setSession(nextSession);
           setIsLoading(false);
-          if (!nextSession) setProfileSyncError(null);
         }
       });
       const appState = AppState.addEventListener('change', (state) => {
@@ -80,26 +70,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       active = false;
       cleanup?.();
     };
-  }, []);
-
-  useEffect(() => {
-    if (!userId) return;
-    const controller = new AbortController();
-    syncProfile({ id: userId, fullName, email }, controller.signal)
-      .then(() => {
-        if (!controller.signal.aborted) setProfileSyncError(null);
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) {
-          setProfileSyncError('Could not save your profile. Please retry or contact support.');
-        }
-      });
-    return () => controller.abort();
-  }, [userId, fullName, email, syncAttempt]);
-
-  const retryProfileSync = useCallback(() => {
-    setProfileSyncError(null);
-    setSyncAttempt((attempt) => attempt + 1);
   }, []);
 
   const login = useCallback(async () => {
@@ -144,11 +114,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated: session !== null,
     isLoading,
     error,
-    profileSyncError,
-    retryProfileSync,
     login,
     logout,
-  }), [session, isLoading, error, profileSyncError, retryProfileSync, login, logout]);
+  }), [session, isLoading, error, login, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
