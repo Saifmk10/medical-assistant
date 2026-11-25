@@ -15,6 +15,8 @@
 <body>
   <h1>Voice Assistant API Test</h1>
   <p class="status" id="status">Disconnected</p>
+  <input id="userId" placeholder="User ID" autocomplete="off" maxlength="256" required>
+  <br>
   <button id="connectButton">Connect</button>
   <button id="micButton" disabled>Start microphone</button>
   <br>
@@ -27,6 +29,7 @@
     const status = document.getElementById("status");
     const log = document.getElementById("log");
     const connectButton = document.getElementById("connectButton");
+    const userId = document.getElementById("userId");
     const micButton = document.getElementById("micButton");
     const sendButton = document.getElementById("sendButton");
     const message = document.getElementById("message");
@@ -55,11 +58,16 @@
     }
 
     function connect() {
+      if (!userId.value.trim()) {
+        writeLog("Enter a user ID before connecting");
+        return;
+      }
       socket = new WebSocket(websocketUrl());
       socket.binaryType = "arraybuffer";
       status.textContent = "Connecting...";
 
       socket.onopen = () => {
+        socket.send(JSON.stringify({ type: "init", user_id: userId.value.trim() }));
         setConnected(true);
         writeLog("WebSocket connected");
       };

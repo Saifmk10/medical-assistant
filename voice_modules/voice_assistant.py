@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from gemini_live import GeminiLive
-from twilio_handler import TwilioHandler
+# from twilio_handler import TwilioHandler
 from google.genai import types
 
 # Load environment variables
@@ -53,10 +53,31 @@ app.add_middleware(
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for Gemini Live."""
+    """WebSocket endpoint for Gemini Live; clients must first send an init message with user_id."""
     await websocket.accept()
 
     logger.info("WebSocket connection accepted")
+
+    try:
+        init_message = await websocket.receive_text()
+        init_payload = json.loads(init_message)
+    except WebSocketDisconnect:
+        return
+    except (json.JSONDecodeError, RuntimeError):
+        await websocket.close(code=1008, reason="First message must be a JSON init message with user_id.")
+        return
+
+    user_id = init_payload.get("user_id") if isinstance(init_payload, dict) else None
+    if (
+        not isinstance(init_payload, dict)
+        or init_payload.get("type") != "init"
+        or not isinstance(user_id, str)
+        or not user_id.strip()
+        or len(user_id) > 256
+    ):
+        await websocket.close(code=1008, reason="First message must be a JSON init message with user_id.")
+        return
+    user_id = user_id.strip()
 
     audio_input_queue = asyncio.Queue()
     video_input_queue = asyncio.Queue()
@@ -70,7 +91,7 @@ async def websocket_endpoint(websocket: WebSocket):
         pass
 
     gemini_client = GeminiLive(
-        api_key=GEMINI_API_KEY, model=MODEL, input_sample_rate=16000
+        api_key=GEMINI_API_KEY, model=MODEL, input_sample_rate=16000, user_id=user_id
     )
 
     async def receive_from_client():

@@ -22,7 +22,7 @@ export class VoiceSession {
 
   constructor(private readonly callbacks: VoiceCallbacks) {}
 
-  connect(): Promise<void> {
+  connect(userId: string): Promise<void> {
     return new Promise((resolve, reject) => {
       const socket = new WebSocket(websocketEndpoint);
       this.socket = socket;
@@ -46,6 +46,7 @@ export class VoiceSession {
       let messageChain = Promise.resolve();
       socket.onopen = () => {
         if (didSettle) return;
+        socket.send(JSON.stringify({ type: 'init', user_id: userId }));
         didSettle = true;
         isReady = true;
         clearTimeout(timeout);
