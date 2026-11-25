@@ -1,180 +1,108 @@
-// =============================================================
-// screens/booking/BookAppointmentScreen.tsx — find doctor → pick slot → confirm
-// -------------------------------------------------------------
-// Implements README.md §8 "Appointment Booking" as a 3-step wizard:
-//   1. Choose/search a doctor (services/doctorService.ts)
-//   2. Choose an available slot (services/appointmentService.ts)
-//   3. Confirm and book (context/AppointmentsContext.tsx)
-// =============================================================
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useRoute, type RouteProp } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '../../components/ScreenContainer';
-import { DoctorCard } from '../../components/DoctorCard';
-import { TimeSlotChip } from '../../components/TimeSlotChip';
-import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
+import { Button } from '../../components/Button';
 import { EmptyState } from '../../components/EmptyState';
-import { getDoctors } from '../../services/doctorService';
-import { getAvailableSlots } from '../../services/appointmentService';
-import { useAppointments } from '../../context/AppointmentsContext';
+import { getDoctors, type DoctorDirectoryEntry } from '../../services/doctorService';
 import { colors, spacing, typography } from '../../theme';
-import { formatFriendlyDate } from '../../utils/date';
-import type { Doctor, AppointmentSlot } from '../../types';
 import type { RootStackParamList } from '../../navigation/types';
 
-type Step = 'doctor' | 'slot' | 'confirm';
-
 export function BookAppointmentScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { bookAppointment } = useAppointments();
-
-  const [step, setStep] = useState<Step>('doctor');
-  const [search, setSearch] = useState('');
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
-  const [slots, setSlots] = useState<AppointmentSlot[]>([]);
-  const [selectedSlot, setSelectedSlot] = useState<AppointmentSlot | null>(null);
-  const [isBooking, setIsBooking] = useState(false);
+  const route = useRoute<RouteProp<RootStackParamList, 'BookAppointment'>>();
+  const [search, setSearch] = useState(route.params?.search ?? route.params?.specialty ?? '');
+  const [doctors, setDoctors] = useState<DoctorDirectoryEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    getDoctors().then(setDoctors);
-  }, []);
+    let active = true;
+    getDoctors().then((result) => {
+      if (active) setDoctors(result);
+    }).catch((cause: unknown) => {
+      if (active) setError(cause instanceof Error ? cause.message : 'Could not load doctors.');
+    }).finally(() => {
+      if (active) setLoading(false);
+    });
+    return () => { active = false; };
+  }, [attempt]);
 
-  const filteredDoctors = doctors.filter((doctor) => {
-    const query = search.toLowerCase();
-    return (
-      doctor.name.toLowerCase().includes(query) || doctor.specialty.toLowerCase().includes(query)
-    );
-  });
-
-  const handleSelectDoctor = async (doctor: Doctor) => {
-    setSelectedDoctor(doctor);
-    const available = await getAvailableSlots(doctor.id);
-    setSlots(available);
-    setStep('slot');
-  };
-
-  const handleSelectSlot = (slot: AppointmentSlot) => {
-    setSelectedSlot(slot);
-    setStep('confirm');
-  };
-
-  const handleConfirm = async () => {
-    if (!selectedDoctor || !selectedSlot) return;
-    setIsBooking(true);
-    try {
-      await bookAppointment({
-        id: `appt-${Date.now()}`,
-        doctor: selectedDoctor,
-        date: selectedSlot.date,
-        startTime: selectedSlot.startTime,
-        endTime: selectedSlot.endTime,
-        location: `${selectedDoctor.clinic} — ${selectedDoctor.location}`,
-        status: 'confirmed',
-      });
-      navigation.goBack();
-    } finally {
-      setIsBooking(false);
-    }
-  };
+  const query = search.trim().toLowerCase();
+  const filtered = doctors.filter((doctor) =>
+    doctor.name.toLowerCase().includes(query) || doctor.specialty.toLowerCase().includes(query)
+  );
 
   return (
     <ScreenContainer>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {step === 'doctor' && (
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
+        <Text style={styles.title}>Find a doctor</Text>
+        <Text style={styles.notice}>
+          Online booking and availability are not available yet. Contact your healthcare provider to book.
+        </Text>
+        <TextInput
+          accessibilityLabel="Search doctors by name or specialty"
+          style={styles.search}
+          placeholder="Search by name or specialty"
+          placeholderTextColor={colors.textTertiary}
+          value={search}
+          onChangeText={setSearch}
+        />
+        {loading ? <ActivityIndicator color={colors.primary} /> : null}
+        {!loading && error ? (
           <>
-            <Text style={styles.stepTitle}>Find a doctor</Text>
-            <TextInput
-              style={styles.search}
-              placeholder="Search by name or specialty (e.g. Dermatology)"
-              placeholderTextColor={colors.textTertiary}
-              value={search}
-              onChangeText={setSearch}
-            />
-            {filteredDoctors.length === 0 ? (
-              <EmptyState title="No matching doctors" subtitle="Try a different name or specialty." />
-            ) : (
-              filteredDoctors.map((doctor) => (
-                <DoctorCard key={doctor.id} doctor={doctor} onPress={() => handleSelectDoctor(doctor)} />
-              ))
-            )}
+            <EmptyState title="Doctor directory unavailable" subtitle={error} />
+            <Button label="Try again" variant="secondary" onPress={() => {
+              setLoading(true);
+              setError(null);
+              setAttempt((value) => value + 1);
+            }} />
           </>
-        )}
-
-        {step === 'slot' && selectedDoctor && (
-          <>
-            <Text style={styles.stepTitle}>Choose a time</Text>
-            <DoctorCard doctor={selectedDoctor} />
-            {slots.length === 0 ? (
-              <EmptyState title="No available slots" subtitle="Try a different doctor." />
-            ) : (
-              Object.entries(groupByDate(slots)).map(([date, daySlots]) => (
-                <View key={date} style={styles.slotGroup}>
-                  <Text style={styles.slotGroupTitle}>{formatFriendlyDate(date)}</Text>
-                  <View style={styles.chipsRow}>
-                    {daySlots.map((slot) => (
-                      <TimeSlotChip
-                        key={slot.id}
-                        label={slot.startTime}
-                        selected={selectedSlot?.id === slot.id}
-                        onPress={() => handleSelectSlot(slot)}
-                      />
-                    ))}
-                  </View>
-                </View>
-              ))
-            )}
-          </>
-        )}
-
-        {step === 'confirm' && selectedDoctor && selectedSlot && (
-          <>
-            <Text style={styles.stepTitle}>Confirm appointment</Text>
-            <Card>
-              <Text style={styles.confirmLabel}>Doctor</Text>
-              <Text style={styles.confirmValue}>{selectedDoctor.name} · {selectedDoctor.specialty}</Text>
-              <Text style={styles.confirmLabel}>Date & time</Text>
-              <Text style={styles.confirmValue}>
-                {formatFriendlyDate(selectedSlot.date)} at {selectedSlot.startTime}
-              </Text>
-              <Text style={styles.confirmLabel}>Location</Text>
-              <Text style={styles.confirmValue}>{selectedDoctor.clinic} — {selectedDoctor.location}</Text>
-            </Card>
-            <Button label="Confirm & Book" onPress={handleConfirm} loading={isBooking} style={styles.confirmButton} />
-          </>
-        )}
+        ) : null}
+        {!loading && !error && filtered.length === 0 ? (
+          <EmptyState title="No matching doctors" subtitle="Try a different name or specialty." />
+        ) : null}
+        {!loading && !error ? filtered.map((doctor, index) => (
+          <Card key={`${doctor.name}-${doctor.specialty}-${index}`} style={styles.doctor}>
+            <View style={styles.icon}>
+              <Ionicons name="person-outline" size={22} color={colors.primary} />
+            </View>
+            <View style={styles.details}>
+              <Text style={styles.name}>{doctor.name}</Text>
+              <Text style={styles.specialty}>{doctor.specialty}</Text>
+              {doctor.workingHours ? <Text style={styles.hours}>{doctor.workingHours}</Text> : null}
+            </View>
+          </Card>
+        )) : null}
       </ScrollView>
     </ScreenContainer>
   );
 }
 
-function groupByDate(slots: AppointmentSlot[]): Record<string, AppointmentSlot[]> {
-  return slots.reduce<Record<string, AppointmentSlot[]>>((acc, slot) => {
-    acc[slot.date] = acc[slot.date] ? [...acc[slot.date], slot] : [slot];
-    return acc;
-  }, {});
-}
-
 const styles = StyleSheet.create({
-  scrollContent: { paddingBottom: spacing.xxl, paddingTop: spacing.sm },
-  stepTitle: { ...typography.h3, color: colors.textPrimary, marginBottom: spacing.sm },
+  content: { paddingTop: spacing.sm, paddingBottom: spacing.xxl },
+  title: { ...typography.h3, color: colors.textPrimary },
+  notice: { ...typography.body, color: colors.textSecondary, marginTop: spacing.xs, marginBottom: spacing.md },
   search: {
-    borderWidth: 1.5,
+    ...typography.body,
+    borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    ...typography.body,
     color: colors.textPrimary,
     backgroundColor: colors.surface,
     marginBottom: spacing.md,
   },
-  slotGroup: { marginTop: spacing.sm },
-  slotGroupTitle: { ...typography.bodyMedium, color: colors.textPrimary, marginBottom: spacing.xs },
-  chipsRow: { flexDirection: 'row', flexWrap: 'wrap' },
-  confirmLabel: { ...typography.label, color: colors.textTertiary, marginTop: spacing.sm },
-  confirmValue: { ...typography.bodyLarge, color: colors.textPrimary, marginTop: 2 },
-  confirmButton: { marginTop: spacing.lg },
+  doctor: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
+  icon: {
+    width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primarySurface,
+    alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm,
+  },
+  details: { flex: 1 },
+  name: { ...typography.bodyMedium, color: colors.textPrimary },
+  specialty: { ...typography.body, color: colors.textSecondary },
+  hours: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.xxs },
 });

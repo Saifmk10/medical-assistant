@@ -3,7 +3,9 @@ import { AudioContext } from 'react-native-audio-api';
 import type { AudioBuffer, AudioBufferQueueSourceNode, AudioBufferSourceNode } from 'react-native-audio-api';
 
 const SAMPLE_RATE = 24_000;
-const INITIAL_BUFFER_SAMPLES = SAMPLE_RATE / 8;
+// Keep the original 125 ms prebuffer, with a timeout for unusually short replies.
+const PREBUFFER_SAMPLES = SAMPLE_RATE / 8;
+const MAX_PREBUFFER_WAIT_MS = 250;
 
 export class PcmAudioPlayer {
   private readonly context = new AudioContext({
@@ -22,6 +24,7 @@ export class PcmAudioPlayer {
   private turnComplete = false;
   private closed = false;
   private trailingByte: number | null = null;
+  private startTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private readonly onPlaybackStart: () => void,
@@ -63,9 +66,14 @@ export class PcmAudioPlayer {
       this.pendingBufferIds.add(queue.enqueueBuffer(audioBuffer));
     }
     this.pendingSamples += sampleCount;
-
-    if (!this.started && this.pendingSamples >= INITIAL_BUFFER_SAMPLES) this.startPlayback();
+    if (!this.started && this.pendingSamples >= PREBUFFER_SAMPLES) this.startPlayback();
     else if (this.started && Platform.OS === 'web') this.scheduleWebBuffers();
+    else if (!this.started && !this.startTimer) {
+      this.startTimer = setTimeout(() => {
+        this.startTimer = null;
+        this.startPlayback();
+      }, MAX_PREBUFFER_WAIT_MS);
+    }
   }
 
   finishTurn() {
@@ -103,6 +111,7 @@ export class PcmAudioPlayer {
 
   private startPlayback() {
     if (this.started || this.closed) return;
+    this.clearStartTimer();
     this.started = true;
     this.onPlaybackStart();
 
@@ -132,10 +141,19 @@ export class PcmAudioPlayer {
     }
   }
 
-  private finishIfDrained() {
-    const hasPendingAudio = Platform.OS === 'web'
+  private hasPendingAudio() {
+    return Platform.OS === 'web'
       ? this.pendingBuffers.length > 0 || this.activeSources.size > 0
       : this.pendingBufferIds.size > 0;
+  }
+
+  private clearStartTimer() {
+    if (this.startTimer) clearTimeout(this.startTimer);
+    this.startTimer = null;
+  }
+
+  private finishIfDrained() {
+    const hasPendingAudio = this.hasPendingAudio();
     if (this.turnComplete && this.started && !hasPendingAudio) {
       this.resetPlayback();
       this.onPlaybackComplete();
@@ -146,6 +164,7 @@ export class PcmAudioPlayer {
   }
 
   private resetPlayback() {
+    this.clearStartTimer();
     if (this.queue) {
       this.queue.onbufferended = null;
       this.queue.clearBuffers();

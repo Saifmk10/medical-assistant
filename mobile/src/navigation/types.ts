@@ -14,7 +14,7 @@ export type MainTabParamList = {
 export type RootStackParamList = {
   Login: undefined;
   MainTabs: NavigatorScreenParams<MainTabParamList>;
-  BookAppointment: { specialty?: string } | undefined;
+  BookAppointment: { specialty?: string; search?: string } | undefined;
   AppointmentDetail: { appointmentId: string };
   RescheduleAppointment: { appointmentId: string };
 };
