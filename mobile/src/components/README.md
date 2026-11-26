@@ -14,6 +14,8 @@ Reusable, presentational UI building blocks. None of these files fetch data dire
 - **AppointmentCard.tsx** — Appointment summary card with optional Reschedule/Cancel actions, used on the Dashboard and My Appointments screen.
 - **TimeSlotChip.tsx** — Selectable pill for choosing an appointment time slot.
 - **MicButton.tsx** — Large circular microphone button that visually reflects the voice assistant state (idle/listening/processing).
+- **VoiceWave.tsx** — Minimal animated sound wave for the voice assistant. Its bars follow the live microphone or reply level, with reduced-motion support.
+- **VoiceOrb.tsx** — Animated particle visualization; currently unused.
 - **ChatBubble.tsx** — Single transcript message bubble (user vs. assistant) for the Voice Assistant screen.
 
 ## Convention for connecting the backend

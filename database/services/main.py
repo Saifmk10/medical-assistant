@@ -1,10 +1,13 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from agentic_api.doctor_details_api import get_doctor_details
-from agentic_api.appointment_operations_api import appointment_booking , appointment_cancellation , user_appointments_api
-from generic_api.authentication_api import new_users, get_user, update_user_name, delete_user
+from agentic_api.appointment_operations_api import appointment_booking , appointment_cancellation
+from generic_api.authentication_api import new_users, get_user, update_user_name, delete_user, ensure_user
+from generic_api.supabase_auth import verified_user
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+bearer = HTTPBearer(auto_error=False)
 
 app.add_middleware(
     CORSMiddleware,
@@ -50,6 +53,13 @@ def get_user_appointments(uid: str):
 @app.post("/new-user")
 def create_user(id: str, username: str, email: str):
     return new_users(id, username, email)
+
+@app.post("/auth/profile-sync", status_code=204)
+def sync_profile(credentials: HTTPAuthorizationCredentials = Depends(bearer)):
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise HTTPException(status_code=401, detail="Bearer token required")
+    user_id, full_name, email = verified_user(credentials.credentials)
+    ensure_user(user_id, full_name, email)
 
 @app.get("/get-user")
 def fetch_user(user_id: str):

@@ -108,8 +108,9 @@ export class VoiceSession {
   }
 
   sendMicrophoneAudio(data: ArrayBuffer) {
-    if (this.socket?.readyState !== WebSocket.OPEN) return;
+    if (this.socket?.readyState !== WebSocket.OPEN) return false;
     this.socket.send(data);
+    return true;
   }
 
   close() {

@@ -5,6 +5,7 @@
 // are pushed on top of the tabs as full-screen stack routes.
 // =============================================================
 import React from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme';
@@ -19,7 +20,11 @@ import { RescheduleAppointmentScreen } from '../screens/appointments/RescheduleA
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function RootNavigator() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator color={colors.primary} /></View>;
+  }
 
   return (
     <Stack.Navigator
@@ -38,7 +43,7 @@ export function RootNavigator() {
           <Stack.Screen
             name="BookAppointment"
             component={BookAppointmentScreen}
-            options={{ title: 'Book Appointment' }}
+            options={{ title: 'Find a Doctor' }}
           />
           <Stack.Screen
             name="AppointmentDetail"
