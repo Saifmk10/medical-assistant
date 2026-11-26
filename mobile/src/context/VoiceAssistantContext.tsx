@@ -328,7 +328,7 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
     } finally {
       connecting.current = false;
     }
-  }, [animateLevel, holdMicrophone, microphoneStream, outputLevel, releaseMicrophone, resetLevels, startNewInputTurn, stopReplyAudio]);
+  }, [animateLevel, holdMicrophone, microphoneStream, outputLevel, patient?.id, releaseMicrophone, resetLevels, startNewInputTurn, stopReplyAudio]);
 
   const reset = useCallback(() => {
     cancelled.current = true;
