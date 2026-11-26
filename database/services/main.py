@@ -39,6 +39,17 @@ def cancel_appointment(uid: str, patient_name: str, doc_name: str, designation: 
         raise HTTPException(status_code=422, detail="At least one appointment detail is required.")
     return appointment_cancellation(uid, patient_name, doc_name, designation, slot_booking_time, hospital , contact)
 
+@app.get("/user-appointments")
+def get_user_appointments(uid: str):
+    if not uid.strip():
+        raise HTTPException(status_code=422, detail="A non-empty uid is required.")
+    return user_appointments_api(uid)
+
+
+
+
+
+# authentication and user actions
 @app.post("/new-user")
 def create_user(id: str, username: str, email: str):
     return new_users(id, username, email)

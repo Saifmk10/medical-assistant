@@ -14,7 +14,8 @@
 
 ## Example query parameters
 
-These are URL query parameters, not JSON request bodies.
+Parameters are URL query parameters, not JSON request bodies. Use the HTTP
+method shown for each URL; opening a URL in a browser sends a GET request.
 
 | Endpoint | Example parameters |
 | --- | --- |
