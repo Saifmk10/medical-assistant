@@ -2,13 +2,15 @@ import os
 
 import psycopg
 from psycopg.rows import dict_row
+from dotenv import load_dotenv
+load_dotenv()
 
 def appointment_booking(uid ,patient_name, doc_name, designation, slot_booking_time, hospital , contact):
     if not uid or not uid.strip():
         raise ValueError("A non-empty uid is required.")
 
     with psycopg.connect(
-        os.getenv("DATABASE_URL", "postgresql://postgres:mysecretpassword@postgres-db:5432/my_app"),
+        os.getenv("DATABASE_URL"),
         row_factory=dict_row
     ) as connection:
         with connection.cursor() as cursor:
@@ -36,7 +38,7 @@ def appointment_cancellation(uid , patient_name, doc_name, designation, slot_boo
 
     conditions = " AND ".join(f"{column} = %s" for column, _ in provided)
     with psycopg.connect(
-        os.getenv("DATABASE_URL", "postgresql://postgres:mysecretpassword@postgres-db:5432/my_app"),
+        os.getenv("DATABASE_URL"),
         row_factory=dict_row
     ) as connection:
         with connection.cursor() as cursor:
@@ -48,6 +50,28 @@ def appointment_cancellation(uid , patient_name, doc_name, designation, slot_boo
     if not deleted:
         return {"error": "No matching appointment found."}
     return {"message": "Appointment cancelled successfully"}
+
+
+
+def user_appointments_api(uid):
+    if not uid or not uid.strip():
+        raise ValueError("A non-empty uid is required.")
+
+    with psycopg.connect(
+        os.getenv("DATABASE_URL"),
+        row_factory=dict_row
+    ) as connection:
+        with connection.cursor() as cursor:
+            try:
+                cursor.execute("SELECT * FROM hospitals.appointments WHERE uid = %s",(uid,))
+                appointments = cursor.fetchall()
+                if not appointments:
+                    return f"appointments not found for {uid}"
+                else:
+                    return {"appointments": appointments}
+            except Exception as e:
+                return {"error in fetching appointments": str(e)}
+    
 
 
 # if __name__=="__main__":
